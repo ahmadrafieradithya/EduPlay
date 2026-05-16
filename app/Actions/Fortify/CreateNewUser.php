@@ -34,10 +34,16 @@ class CreateNewUser implements CreatesNewUsers
             'password' => $this->passwordRules(),
         ])->validate();
 
+        // Get default school (or first school)
+        $school = \App\Models\School::first();
+
         return User::create([
             'name' => $input['name'],
             'email' => $input['email'],
             'password' => Hash::make($input['password']),
+            'school_id' => $school?->id,
+            'level' => 1,
+            'total_xp' => 0,
         ]);
     }
 }

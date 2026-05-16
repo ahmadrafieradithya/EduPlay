@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Casts\AsArrayObject;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 class Game extends Model
 {
@@ -44,9 +45,24 @@ class Game extends Model
         return $this->hasMany(GameSession::class);
     }
 
-    public function scopeActive($query)
+    public function levels(): HasMany
     {
-        return $query->where('is_active', true);
+        return $this->hasMany(GameLevel::class);
+    }
+
+    public function scores(): HasManyThrough
+    {
+        return $this->hasManyThrough(GameScore::class, GameSession::class, 'game_id', 'game_session_id');
+    }
+
+    public function getIsPublishedAttribute(): bool
+    {
+        return $this->is_active;
+    }
+
+    public function scopePublished($query)
+    {
+        return $query->active();
     }
 
     public function scopeForSchool($query, $schoolId)

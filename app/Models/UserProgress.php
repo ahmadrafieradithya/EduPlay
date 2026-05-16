@@ -11,6 +11,7 @@ class UserProgress extends Model
 
     protected $fillable = [
         'user_id',
+        'lesson_id',
         'module_id',
         'status',
         'score',

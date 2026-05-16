@@ -43,4 +43,56 @@ class User extends Authenticatable
     {
         return $this->hasOne(UserProfile::class);
     }
+
+    public function bookmarks()
+    {
+        return $this->hasMany(Bookmark::class);
+    }
+
+    public function progress()
+    {
+        return $this->hasMany(UserProgress::class);
+    }
+
+    public function quizAttempts()
+    {
+        return $this->hasMany(QuizAttempt::class);
+    }
+
+    public function quizAnswers()
+    {
+        return $this->hasMany(QuizAnswer::class);
+    }
+
+    public function xp()
+    {
+        return $this->hasOne(UserXP::class);
+    }
+
+    public function streak()
+    {
+        return $this->hasOne(Streak::class);
+    }
+
+    public function xpTransactions()
+    {
+        return $this->hasMany(XPTransaction::class);
+    }
+
+    public function badges()
+    {
+        return $this->belongsToMany(Badge::class, 'user_badges')
+            ->withTimestamps()
+            ->withPivot('earned_at');
+    }
+
+    public function playerRating()
+    {
+        return $this->hasOne(PlayerRating::class);
+    }
+
+    public function codeSnippets()
+    {
+        return $this->hasMany(CodeSnippet::class);
+    }
 }

@@ -6,6 +6,7 @@ use App\Models\School;
 use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
 
 class DatabaseSeeder extends Seeder
@@ -17,30 +18,33 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        Role::firstOrCreate(['name' => 'super_admin']);
-        Role::firstOrCreate(['name' => 'admin_sekolah']);
-        Role::firstOrCreate(['name' => 'guru']);
-        Role::firstOrCreate(['name' => 'siswa']);
+        // Call role seeder first
+        $this->call(RoleSeeder::class);
 
+        // Create default school
         $school = School::firstOrCreate([
-            'slug' => 'sekolah-demo',
+            'slug' => 'demo-school',
         ], [
-            'name' => 'EduPlay Demo School',
+            'name' => 'Demo School',
             'domain' => 'demo.eduplay.test',
-            'address' => 'Jl. Pendidikan No. 1, Jakarta',
+            'address' => 'Demo address',
             'quota_students' => 1000,
             'is_active' => true,
         ]);
 
-        $admin = User::factory()->create([
-            'name' => 'Super Admin',
+        // Create super admin user
+        $superAdmin = User::firstOrCreate([
             'email' => 'admin@eduplay.test',
-            'password' => 'password',
+        ], [
+            'name' => 'Super Admin',
+            'password' => Hash::make('password'),
             'school_id' => $school->id,
-            'level' => 1,
-            'total_xp' => 0,
+            'email_verified_at' => now(),
         ]);
 
-        $admin->assignRole('super_admin');
+        $superAdmin->assignRole('super-admin');
+
+        // Seed demo data after basic app setup
+        $this->call(DemoDataSeeder::class);
     }
 }
