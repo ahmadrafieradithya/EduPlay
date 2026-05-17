@@ -11,14 +11,15 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('user_progress', function (Blueprint $table) {
+        Schema::create('user_lesson_progress', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
-            $table->foreignId('lesson_id')->nullable()->constrained('lessons')->nullOnDelete();
-            $table->enum('status', ['pending', 'in_progress', 'completed'])->default('pending');
-            $table->integer('score')->nullable();
+            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('lesson_id')->constrained()->cascadeOnDelete();
+            $table->enum('status', ['not_started', 'in_progress', 'completed'])->default('in_progress');
+            $table->integer('time_spent_seconds')->default(0);
             $table->timestamp('completed_at')->nullable();
             $table->timestamps();
+
             $table->unique(['user_id', 'lesson_id']);
         });
     }
@@ -28,6 +29,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('user_progress');
+        Schema::dropIfExists('user_lesson_progress');
     }
 };

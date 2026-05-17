@@ -37,7 +37,11 @@ class LeaderboardController extends Controller
 
         $podium = $leaderboard->take(3);
 
-        return view('leaderboard.index', compact('leaderboard', 'myRank', 'filter', 'podium'));
+        // Tambahkan ini sebelum return view
+        $myXP = UserXP::where('user_id', auth()->id())->first();
+
+        return view('leaderboard.index', compact('leaderboard', 'myRank', 'filter', 'podium', 'myXP'));
+        
     }
 
     private function calculateMovement($userId)

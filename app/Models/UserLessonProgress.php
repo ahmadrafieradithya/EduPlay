@@ -2,19 +2,23 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class Bookmark extends Model
+class UserLessonProgress extends Model
 {
-    use HasFactory;
+    protected $table = 'user_lesson_progress';
 
     protected $fillable = [
         'user_id',
         'lesson_id',
-        'label',
-        'note',
+        'status',
+        'time_spent_seconds',
+        'completed_at',
+    ];
+
+    protected $casts = [
+        'completed_at' => 'datetime',
     ];
 
     public function user(): BelongsTo
@@ -24,6 +28,6 @@ class Bookmark extends Model
 
     public function lesson(): BelongsTo
     {
-        return $this->belongsTo(Lesson::class)->with('topic.learningPath');
+        return $this->belongsTo(Lesson::class);
     }
 }
