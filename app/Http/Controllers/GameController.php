@@ -35,20 +35,30 @@ class GameController extends Controller
     /**
      * Play a specific game level - route to appropriate game view
      */
-    public function play(Game $game, GameLevel $level): View
+    public function play(Game $game, GameLevel $level)
     {
         abort_if(!$game->is_published, 404);
+        abort_if($level->game_id !== $game->id, 404);
 
-        // Route to the appropriate game view based on type
-        $view = match ($game->type) {
-            'typing_race' => 'games.play-typing',
-            'quiz' => 'games.play-quiz',
-            'bug_fix' => 'games.play-bug-fix',
-            'code_puzzle' => 'games.play-code-puzzle',
+    // ← INI yang kurang: load semua level untuk selector
+        $allLevels = $game->levels()->orderBy('level_number')->get();
+
+        $viewMap = [
+            'typing_race'     => 'games.play-typing',
+            'speed_typing'    => 'games.play-typing',
+            'bug_fix'         => 'games.play-bug-fix',
+            'bug_hunter'      => 'games.play-bug-fix',
+            'code_puzzle'     => 'games.play-code-puzzle',
+            'puzzle'          => 'games.play-code-puzzle',
             'output_guessing' => 'games.play-output-guessing',
-            default => 'games.play',
-        };
+            'mcq'             => 'games.play-output-guessing',
+            'html_builder'    => 'games.play-output-guessing',
+            'fill_blank'      => 'games.play-output-guessing',
+        ];
 
-        return view($view, compact('game', 'level'));
+        $view = $viewMap[$game->type] ?? 'games.play';
+
+        return view($view, compact('game', 'level', 'allLevels'));
+    //                                              ↑ tambah allLevels di sini
     }
 }
