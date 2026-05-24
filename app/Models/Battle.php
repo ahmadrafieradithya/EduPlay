@@ -12,13 +12,15 @@ class Battle extends Model
     use HasFactory;
 
     protected $fillable = [
-        'code',
-        'host_id',
-        'game_level_id',
-        'status',
-        'winner_id',
-        'max_participants',
-    ];
+    'code',
+    'host_id',        // ← pastikan ada ini
+    'game_level_id',
+    'status',
+    'max_participants',
+    'winner_id',
+    'started_at',
+    'ended_at',
+];
 
     protected $casts = [
         'started_at' => 'datetime',
