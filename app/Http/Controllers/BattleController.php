@@ -56,18 +56,18 @@ class BattleController extends Controller
         $user = $request->user();
 
         $battle = Battle::create([
-            'code' => Battle::generateCode(),
-            'host_id' => $user->id,
-            'game_level_id' => $request->get('game_level_id'),
-            'status' => 'waiting',
+            'code'             => Battle::generateCode(),
+            'host_id'          => $user->id,
+            'challenger_id'    => $user->id,  // ← TAMBAH INI
+            'game_level_id'    => $request->get('game_level_id'),
+            'status'           => 'waiting',
             'max_participants' => 2,
         ]);
 
         // Insert participant in pivot table (battle_participants)
         DB::table('battle_participants')->insert([
-            'battle_id' => $battle->id,
-            'user_id' => $user->id,
-            'joined_at' => now(),
+            'battle_id'  => $battle->id,
+            'user_id'    => $user->id,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
