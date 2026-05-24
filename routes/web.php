@@ -25,7 +25,12 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/game', [GameController::class, 'index'])->name('games.index');
     Route::get('/game/{game}/play/{level}', [GameController::class, 'play'])->name('games.play');
     Route::get('/battle', [BattleController::class, 'index'])->name('battle.index');
+    Route::post('/battle/create', [BattleController::class, 'create'])->name('battle.create');
+    Route::post('/battle/join', [BattleController::class, 'join'])->name('battle.join');
+    Route::get('/battle/{code}', [BattleController::class, 'room'])->name('battle.room');
     Route::get('/editor', [EditorController::class, 'index'])->name('editor.index');
     Route::get('/leaderboard', [LeaderboardController::class, 'index'])->name('leaderboard.index');
     Route::get('/badge', [BadgeController::class, 'index'])->name('badges.index');
+
+    Route::post('/editor/save', [App\Http\Controllers\EditorController::class, 'save'])->name('editor.save');
 });

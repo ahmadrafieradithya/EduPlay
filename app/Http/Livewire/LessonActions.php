@@ -53,7 +53,7 @@ class LessonActions extends Component
         $xp = (int) ($this->lesson->xp_reward ?? 10);
         $user->increment('total_xp', $xp);
 
-        $userXp = UserXP::firstOrCreate(['user_id' => $user->id], ['total_xp' => 0, 'level_id' => 1]);
+        $userXp = UserXP::firstOrCreate(['user_id' => $user->id], ['total_xp' => 0]);
         $userXp->increment('total_xp', $xp);
 
         // Update streak

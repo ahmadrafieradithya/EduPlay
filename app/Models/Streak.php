@@ -12,12 +12,14 @@ class Streak extends Model
         'current_streak',
         'longest_streak',
         'last_activity_date',
+        'freeze_tokens',
     ];
 
     protected $casts = [
         'current_streak' => 'integer',
         'longest_streak' => 'integer',
         'last_activity_date' => 'date',
+        'freeze_tokens' => 'integer',
     ];
 
     public function user(): BelongsTo

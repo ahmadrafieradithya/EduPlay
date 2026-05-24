@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Battle extends Model
 {
@@ -11,42 +13,53 @@ class Battle extends Model
 
     protected $fillable = [
         'code',
-        'challenger_id',
-        'opponent_id',
+        'host_id',
         'game_level_id',
         'status',
         'winner_id',
-        'started_at',
-        'ended_at',
+        'max_participants',
     ];
 
     protected $casts = [
         'started_at' => 'datetime',
         'ended_at' => 'datetime',
+        'max_participants' => 'integer',
     ];
 
-    public function challenger()
+    public function host(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'challenger_id');
+        return $this->belongsTo(User::class, 'host_id');
     }
 
-    public function opponent()
-    {
-        return $this->belongsTo(User::class, 'opponent_id');
-    }
-
-    public function winner()
+    public function winner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'winner_id');
     }
 
-    public function gameLevel()
+    public function level(): BelongsTo
     {
-        return $this->belongsTo(GameLevel::class);
+        return $this->belongsTo(GameLevel::class, 'game_level_id');
     }
 
-    public function results()
+    public function participants(): BelongsToMany
     {
-        return $this->hasMany(BattleResult::class);
+        return $this->belongsToMany(User::class, 'battle_participants')
+            ->withPivot('joined_at')
+            ->withTimestamps();
+    }
+
+    public static function generateCode(): string
+    {
+        do {
+            $code = strtoupper(substr(bin2hex(random_bytes(3)), 0, 6));
+        } while (self::where('code', $code)->exists());
+
+        return $code;
+    }
+
+    public function isFull(): bool
+    {
+        $max = $this->max_participants ?? 2;
+        return $this->participants()->count() >= $max;
     }
 }

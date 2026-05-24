@@ -14,15 +14,20 @@ class Game extends Model
         'school_id',
         'title',
         'type',
+        'description',
+        'difficulty',
+        'icon',
         'config',
         'course_id',
         'created_by',
         'is_active',
+        'is_published',
     ];
 
     protected $casts = [
         'config' => AsArrayObject::class,
         'is_active' => 'boolean',
+        'is_published' => 'boolean',
     ];
 
     public function school(): BelongsTo
@@ -47,7 +52,7 @@ class Game extends Model
 
     public function levels(): HasMany
     {
-        return $this->hasMany(GameLevel::class);
+        return $this->hasMany(GameLevel::class)->orderBy('level_number');
     }
 
     public function scores(): HasManyThrough
@@ -57,16 +62,21 @@ class Game extends Model
 
     public function getIsPublishedAttribute(): bool
     {
-        return $this->is_active;
+        return $this->is_active ?? $this->is_published;
     }
 
     public function scopePublished($query)
     {
-        return $query->active();
+        return $query->where('is_published', true)->orWhere('is_active', true);
     }
 
     public function scopeForSchool($query, $schoolId)
     {
         return $query->where('school_id', $schoolId);
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
     }
 }

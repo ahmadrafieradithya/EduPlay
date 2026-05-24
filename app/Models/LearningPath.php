@@ -45,9 +45,12 @@ class LearningPath extends Model
         $total = $this->total_lessons;
         if ($total === 0) return 0;
         
+        $lessonIds = $this->publishedTopics->flatMap->publishedLessons->pluck('id')->toArray();
+        if (empty($lessonIds)) return 0;
+
         $completed = UserLessonProgress::where('user_id', $userId)
             ->where('status', 'completed')
-            ->whereIn('lesson_id', $this->publishedTopics->flatMap->publishedLessons->pluck('id'))
+            ->whereIn('lesson_id', $lessonIds)
             ->count();
         
         return (int) round(($completed / $total) * 100);

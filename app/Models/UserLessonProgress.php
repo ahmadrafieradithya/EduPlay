@@ -19,7 +19,12 @@ class UserLessonProgress extends Model
 
     protected $casts = [
         'completed_at' => 'datetime',
+        'time_spent_seconds' => 'integer',
     ];
+
+    public const STATUS_NOT_STARTED = 'not_started';
+    public const STATUS_IN_PROGRESS = 'in_progress';
+    public const STATUS_COMPLETED = 'completed';
 
     public function user(): BelongsTo
     {
@@ -29,5 +34,15 @@ class UserLessonProgress extends Model
     public function lesson(): BelongsTo
     {
         return $this->belongsTo(Lesson::class);
+    }
+
+    public function scopeCompleted($query)
+    {
+        return $query->where('status', self::STATUS_COMPLETED);
+    }
+
+    public function scopeInProgress($query)
+    {
+        return $query->where('status', self::STATUS_IN_PROGRESS);
     }
 }

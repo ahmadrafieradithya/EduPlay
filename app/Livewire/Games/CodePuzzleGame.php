@@ -34,12 +34,13 @@ class CodePuzzleGame extends Component
         
         // Set time based on difficulty (in seconds)
         $difficultyMultipliers = [
-            'mudah' => 60,
-            'sedang' => 45,
-            'sulit' => 30,
+            'easy' => 60,
+            'medium' => 45,
+            'hard' => 30,
+            'expert' => 20,
         ];
         
-        $difficulty = strtolower($level->difficulty ?? 'sedang');
+        $difficulty = strtolower($level->game->difficulty ?? 'medium');
         $this->totalTime = $difficultyMultipliers[$difficulty] ?? 45;
         $this->timeRemaining = $this->totalTime;
         
@@ -126,11 +127,12 @@ class CodePuzzleGame extends Component
 
         // Get difficulty multiplier
         $difficultyMultipliers = [
-            'mudah' => 0.5,
-            'sedang' => 1.0,
-            'sulit' => 1.5,
+            'easy' => 0.5,
+            'medium' => 1.0,
+            'hard' => 1.5,
+            'expert' => 2.0,
         ];
-        $difficulty = strtolower($this->level->difficulty ?? 'sedang');
+        $difficulty = strtolower($this->level->game->difficulty ?? 'medium');
         $multiplier = $difficultyMultipliers[$difficulty] ?? 1.0;
 
         // Calculate final score
@@ -189,8 +191,8 @@ class CodePuzzleGame extends Component
     public function getNextLevel()
     {
         $nextLevel = GameLevel::where('game_id', $this->level->game_id)
-            ->where('order', '>', $this->level->order)
-            ->orderBy('order')
+            ->where('level_number', '>', $this->level->level_number)
+            ->orderBy('level_number')
             ->first();
 
         if ($nextLevel) {

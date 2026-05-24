@@ -24,6 +24,7 @@ class Topic extends Model
 
     protected $casts = [
         'is_published' => 'boolean',
+        'estimated_minutes' => 'integer',
     ];
 
     public function learningPath(): BelongsTo

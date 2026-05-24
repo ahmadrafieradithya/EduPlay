@@ -4,19 +4,35 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Models\UserXP;
+use App\Models\Level;
 
 class XPService
 {
-    public function award(User $user, string $action, int $xpAmount, array $metadata = []): UserXP
+    /**
+     * Award XP to a user
+     */
+    public function award(User $user, string $reason, int $amount, array $metadata = []): UserXP
     {
         $userXp = $user->xp ?? $user->xp()->create(['total_xp' => 0]);
-        $userXp->increment('total_xp', $xpAmount);
+        $userXp->increment('total_xp', $amount);
+
+        // Refresh to get updated XP
+        $userXp->refresh();
+
+        // Check for level up
+        $newLevel = Level::findLevelByXp($userXp->total_xp);
+        if ($newLevel && $userXp->level_id !== $newLevel->id) {
+            $userXp->update(['level_id' => $newLevel->id]);
+            $user->update(['level' => $newLevel->level_number, 'total_xp' => $userXp->total_xp]);
+        } else {
+            $user->update(['total_xp' => $userXp->total_xp]);
+        }
 
         // Log XP transaction if the model exists
         if (method_exists($user, 'xpTransactions')) {
             $user->xpTransactions()->create([
-                'action' => $action,
-                'xp_amount' => $xpAmount,
+                'action' => $reason,
+                'xp_amount' => $amount,
                 'metadata' => $metadata,
             ]);
         }
@@ -24,15 +40,29 @@ class XPService
         return $userXp;
     }
 
-    public function deduct(User $user, string $action, int $xpAmount, array $metadata = []): UserXP
+    /**
+     * Deduct XP from a user
+     */
+    public function deduct(User $user, string $reason, int $amount, array $metadata = []): UserXP
     {
         $userXp = $user->xp ?? $user->xp()->create(['total_xp' => 0]);
-        $userXp->decrement('total_xp', max(0, $xpAmount));
+        $newTotal = max(0, $userXp->total_xp - $amount);
+        $userXp->update(['total_xp' => $newTotal]);
+        $userXp->refresh();
+
+        // Check for level down
+        $newLevel = Level::findLevelByXp($newTotal);
+        if ($newLevel && $userXp->level_id !== $newLevel->id) {
+            $userXp->update(['level_id' => $newLevel->id]);
+            $user->update(['level' => $newLevel->level_number, 'total_xp' => $newTotal]);
+        } else {
+            $user->update(['total_xp' => $newTotal]);
+        }
 
         if (method_exists($user, 'xpTransactions')) {
             $user->xpTransactions()->create([
-                'action' => $action,
-                'xp_amount' => -$xpAmount,
+                'action' => $reason,
+                'xp_amount' => -$amount,
                 'metadata' => $metadata,
             ]);
         }
@@ -40,37 +70,50 @@ class XPService
         return $userXp;
     }
 
-    public function getUserLevel(int $totalXp): array
+    /**
+     * Get user's current level info based on total XP
+     */
+    public function getUserLevel(int $totalXp): ?Level
     {
-        // Define level thresholds
-        $levels = [
-            1 => ['min_xp' => 0, 'max_xp' => 100, 'title' => 'Murid Baru'],
-            2 => ['min_xp' => 100, 'max_xp' => 250, 'title' => 'Murid Aktif'],
-            3 => ['min_xp' => 250, 'max_xp' => 500, 'title' => 'Penggiat'],
-            4 => ['min_xp' => 500, 'max_xp' => 1000, 'title' => 'Juara'],
-            5 => ['min_xp' => 1000, 'max_xp' => 2000, 'title' => 'Master'],
-            6 => ['min_xp' => 2000, 'max_xp' => 5000, 'title' => 'Legend'],
-        ];
+        return Level::findLevelByXp($totalXp);
+    }
 
-        foreach ($levels as $levelNum => $data) {
-            if ($totalXp >= $data['min_xp'] && $totalXp < $data['max_xp']) {
-                return [
-                    'level' => $levelNum,
-                    'title' => $data['title'],
-                    'min_xp' => $data['min_xp'],
-                    'max_xp' => $data['max_xp'],
-                    'progress' => round((($totalXp - $data['min_xp']) / ($data['max_xp'] - $data['min_xp'])) * 100, 2),
-                ];
-            }
+    /**
+     * Get XP progress to next level
+     */
+    public function getProgressToNextLevel(User $user): array
+    {
+        $userXp = $user->xp;
+        if (!$userXp) {
+            return ['current' => 0, 'needed' => 0, 'nextLevel' => null, 'percentage' => 0];
         }
 
-        // Max level reached
+        $currentLevel = Level::findLevelByXp($userXp->total_xp);
+        if (!$currentLevel) {
+            return ['current' => 0, 'needed' => 0, 'nextLevel' => null, 'percentage' => 0];
+        }
+
+        $nextLevel = Level::where('level_number', '>', $currentLevel->level_number)->first();
+        if (!$nextLevel) {
+            return [
+                'current' => $userXp->total_xp,
+                'needed' => $currentLevel->max_xp,
+                'nextLevel' => null,
+                'percentage' => 100,
+                'isMaxLevel' => true,
+            ];
+        }
+
+        $xpIntoLevel = $userXp->total_xp - $currentLevel->min_xp;
+        $xpForLevel = $currentLevel->max_xp - $currentLevel->min_xp;
+        $percentage = $xpForLevel > 0 ? round(($xpIntoLevel / $xpForLevel) * 100, 2) : 0;
+
         return [
-            'level' => count($levels),
-            'title' => 'Legend',
-            'min_xp' => end($levels)['min_xp'],
-            'max_xp' => end($levels)['max_xp'],
-            'progress' => 100,
+            'current' => $xpIntoLevel,
+            'needed' => $xpForLevel,
+            'nextLevel' => $nextLevel,
+            'percentage' => $percentage,
+            'isMaxLevel' => false,
         ];
     }
 }

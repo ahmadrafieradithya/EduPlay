@@ -2,12 +2,8 @@
 
 namespace Database\Seeders;
 
-use App\Models\School;
-use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
-use Spatie\Permission\Models\Role;
 
 class DatabaseSeeder extends Seeder
 {
@@ -18,33 +14,27 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Call role seeder first
+        // Step 1: Create roles and permissions
         $this->call(RoleSeeder::class);
 
-        // Create default school
-        $school = School::firstOrCreate([
-            'slug' => 'demo-school',
-        ], [
-            'name' => 'Demo School',
-            'domain' => 'demo.eduplay.test',
-            'address' => 'Demo address',
-            'quota_students' => 1000,
-            'is_active' => true,
-        ]);
+        // Step 2: Seed levels (must be first for users to reference)
+        $this->call(LevelSeeder::class);
 
-        // Create super admin user
-        $superAdmin = User::firstOrCreate([
-            'email' => 'admin@eduplay.test',
-        ], [
-            'name' => 'Super Admin',
-            'password' => Hash::make('password'),
-            'school_id' => $school->id,
-            'email_verified_at' => now(),
-        ]);
+        // Step 3: Create users with roles, XP, and streaks
+        $this->call(UserSeeder::class);
 
-        $superAdmin->assignRole('super-admin');
+        // Step 4: Create learning paths with topics and lessons
+        $this->call(LearningPathSeeder::class);
 
-        // Seed demo data after basic app setup
-        $this->call(DemoDataSeeder::class);
+        // Step 5: Create games with levels and content
+        $this->call(GameSeeder::class);
+
+        // Step 6: Create badges
+        $this->call(BadgeSeeder::class);
+
+        // Optional: Seed additional demo data if exists
+        if (class_exists(DemoDataSeeder::class)) {
+            $this->call(DemoDataSeeder::class);
+        }
     }
 }

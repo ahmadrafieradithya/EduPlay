@@ -4,50 +4,57 @@ namespace App\Http\Controllers;
 
 use App\Models\UserXP;
 use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class LeaderboardController extends Controller
 {
-    public function index(Request $request)
+    /**
+     * Display leaderboard with filtering options
+     */
+    public function index(Request $request): View
     {
         $filter = $request->get('filter', 'school');
 
         $query = UserXP::with([
-            'user' => fn($q) => $q->with(['streak', 'school'])
-        ])->orderBy('total_xp', 'desc');
+            'user' => fn($q) => $q->select('id', 'name', 'email', 'avatar', 'school_id')->with('school'),
+            'level'
+        ])->orderBy('total_xp', 'desc')->take(100);
 
-        if ($filter === 'class') {
-            $classId = auth()->user()->profile?->class_id;
-            if ($classId) {
-                $query->whereHas('user', fn($q) => $q->whereHas('classes', fn($q2) => $q2->where('id', $classId)));
+        // Apply filter
+        if ($filter === 'school' && auth()->check()) {
+            $schoolId = auth()->user()->school_id;
+            if ($schoolId) {
+                $query->whereHas('user', fn($q) => $q->where('school_id', $schoolId));
             }
-        } elseif ($filter === 'school') {
-            $query->whereHas('user', fn($q) => $q->where('school_id', auth()->user()->school_id));
         }
-        // 'global' → no additional filter
-        // 'weekly' → filter by last 7 days activity
+        // 'global' → no filter, show all users
+        // 'weekly' → would filter by recent activity dates
 
-        $leaderboard = $query->get()->map(function ($entry, $index) {
+        $allLeaderboard = $query->get();
+
+        // Add rank and prepare for display (show top 20)
+        $leaderboard = $allLeaderboard
+            ->map(function ($entry, $index) {
+                $entry->rank = $index + 1;
+                return $entry;
+            })
+            ->take(20);
+
+        // Get podium (top 3)
+        $podium = $allLeaderboard->take(3)->map(function ($entry, $index) {
             $entry->rank = $index + 1;
-            $entry->movement = $this->calculateMovement($entry->user_id); // up, down, or same
             return $entry;
         });
 
-        $myRank = $leaderboard->search(fn($e) => $e->user_id === auth()->id());
-        $myRank = $myRank !== false ? $myRank + 1 : null;
+        // Find user's rank
+        $myRank = null;
+        if (auth()->check()) {
+            $userXp = $allLeaderboard->firstWhere('user_id', auth()->id());
+            $myRank = $userXp ? $allLeaderboard->search($userXp) + 1 : null;
+            $myXP = $userXp;
+        }
 
-        $podium = $leaderboard->take(3);
-
-        // Tambahkan ini sebelum return view
-        $myXP = UserXP::where('user_id', auth()->id())->first();
-
-        return view('leaderboard.index', compact('leaderboard', 'myRank', 'filter', 'podium', 'myXP'));
-        
-    }
-
-    private function calculateMovement($userId)
-    {
-        // In a real implementation, you would query yesterday's rank vs today's rank
-        // For now, return 'same' as default
-        return 'same'; // Can be 'up', 'down', or 'same'
+        return view('leaderboard.index', compact('leaderboard', 'myRank', 'myXP', 'filter', 'podium', 'allLeaderboard'));
     }
 }
+

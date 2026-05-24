@@ -10,6 +10,9 @@ use Illuminate\View\View;
 
 class LearnController extends Controller
 {
+    /**
+     * Show all published learning paths with user progress
+     */
     public function index(): View
     {
         $paths = LearningPath::where('is_published', true)
@@ -23,6 +26,9 @@ class LearnController extends Controller
         return view('learn.index', compact('paths'));
     }
 
+    /**
+     * Show all topics and lessons for a learning path
+     */
     public function path(LearningPath $path): View
     {
         abort_if(!$path->is_published, 404);
@@ -33,11 +39,14 @@ class LearnController extends Controller
             ->get()
             ->keyBy('lesson_id');
 
-        $completedIds = $progressMap->where('status', 'completed')->keys();
+        $completedIds = $progressMap->where('status', UserLessonProgress::STATUS_COMPLETED)->keys();
 
         return view('learn.path', compact('path', 'progressMap', 'completedIds'));
     }
 
+    /**
+     * Show a single lesson with content and navigation
+     */
     public function lesson(Lesson $lesson): View
     {
         abort_if(!$lesson->is_published, 404);
@@ -47,14 +56,14 @@ class LearnController extends Controller
         $idx = $allLessons->search(fn($l) => $l->id === $lesson->id);
 
         $completedIds = UserLessonProgress::where('user_id', auth()->id())
-            ->where('status', 'completed')
+            ->where('status', UserLessonProgress::STATUS_COMPLETED)
             ->whereIn('lesson_id', $allLessons->pluck('id'))
             ->pluck('lesson_id');
 
         // Mark as in_progress
-        UserLessonProgress::firstOrCreate(
+        UserLessonProgress::updateOrCreate(
             ['user_id' => auth()->id(), 'lesson_id' => $lesson->id],
-            ['status' => 'in_progress']
+            ['status' => UserLessonProgress::STATUS_IN_PROGRESS]
         );
 
         return view('learn.lesson', [
@@ -66,6 +75,9 @@ class LearnController extends Controller
         ]);
     }
 
+    /**
+     * Show user's bookmarked lessons
+     */
     public function bookmarks(): View
     {
         $bookmarks = Bookmark::where('user_id', auth()->id())

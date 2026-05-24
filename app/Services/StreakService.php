@@ -4,20 +4,22 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Models\Streak;
-use Carbon\Carbon;
 
 class StreakService
 {
+    /**
+     * Update user's learning streak
+     */
     public function updateStreak(User $user): Streak
     {
         $streak = $user->streak ?? $user->streak()->create([
             'current_streak' => 0,
             'longest_streak' => 0,
-            'last_activity_at' => null,
+            'last_activity_date' => null,
         ]);
 
         $now = now();
-        $lastActivity = $streak->last_activity_at;
+        $lastActivity = $streak->last_activity_date;
 
         // Check if user already did activity today
         if ($lastActivity && $lastActivity->toDateString() === $now->toDateString()) {
@@ -28,6 +30,7 @@ class StreakService
         if ($lastActivity && $lastActivity->diffInDays($now) === 1) {
             $streak->current_streak++;
         } elseif (!$lastActivity || $lastActivity->diffInDays($now) > 1) {
+            // Reset streak if gap > 1 day
             $streak->current_streak = 1;
         }
 
@@ -36,12 +39,15 @@ class StreakService
             $streak->longest_streak = $streak->current_streak;
         }
 
-        $streak->last_activity_at = $now;
+        $streak->last_activity_date = $now->toDateString();
         $streak->save();
 
         return $streak;
     }
 
+    /**
+     * Reset user's current streak
+     */
     public function resetStreak(User $user): void
     {
         $streak = $user->streak;
@@ -50,7 +56,30 @@ class StreakService
         }
     }
 
-    public function getStreakStatus(User $user): array
+    /**
+     * Check if user's streak should be reset (missed activity day)
+     */
+    public function checkStreakReset(User $user): bool
+    {
+        $streak = $user->streak;
+        if (!$streak || !$streak->last_activity_date) {
+            return false;
+        }
+
+        $daysSinceLastActivity = $streak->last_activity_date->diffInDays(now());
+        
+        if ($daysSinceLastActivity > 1) {
+            $this->resetStreak($user);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Get streak info for display
+     */
+    public function getStreakInfo(User $user): array
     {
         $streak = $user->streak;
 
@@ -58,40 +87,24 @@ class StreakService
             return [
                 'current' => 0,
                 'longest' => 0,
-                'status' => 'inactive',
-                'message' => 'Mulai sekarang untuk membangun streak!',
+                'active' => false,
+                'daysRemaining' => 0,
             ];
         }
 
-        $lastActivity = $streak->last_activity_at;
-        $now = now();
+        $isActive = !$streak->last_activity_date || 
+                   $streak->last_activity_date->diffInDays(now()) <= 1;
 
-        if (!$lastActivity) {
-            return [
-                'current' => 0,
-                'longest' => $streak->longest_streak,
-                'status' => 'inactive',
-                'message' => 'Mulai sekarang untuk membangun streak!',
-            ];
-        }
-
-        $daysSinceLastActivity = $lastActivity->diffInDays($now);
-
-        $status = match (true) {
-            $daysSinceLastActivity === 0 => 'active_today',
-            $daysSinceLastActivity === 1 => 'active',
-            default => 'broken',
-        };
+        $daysRemaining = $isActive && $streak->last_activity_date?->toDateString() !== now()->toDateString() 
+            ? 0 
+            : 1;
 
         return [
             'current' => $streak->current_streak,
             'longest' => $streak->longest_streak,
-            'status' => $status,
-            'message' => match ($status) {
-                'active_today' => 'Kamu sudah belajar hari ini! 🔥',
-                'active' => 'Streak masih berlanjut! 🔥',
-                default => 'Streak putus. Mulai lagi untuk rebuild! 💪',
-            },
+            'active' => $isActive,
+            'daysRemaining' => $daysRemaining,
+            'lastActivityDate' => $streak->last_activity_date,
         ];
     }
 }

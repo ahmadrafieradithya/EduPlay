@@ -27,6 +27,8 @@ class Lesson extends Model
     protected $casts = [
         'is_published' => 'boolean',
         'is_free' => 'boolean',
+        'xp_reward' => 'integer',
+        'duration_minutes' => 'integer',
     ];
 
     public function topic(): BelongsTo

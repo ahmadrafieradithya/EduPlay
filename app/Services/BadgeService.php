@@ -4,19 +4,28 @@ namespace App\Services;
 
 use App\Models\Badge;
 use App\Models\User;
+use App\Models\UserLessonProgress;
 
 class BadgeService
 {
+    /**
+     * Check and award badges to user based on conditions
+     */
     public function checkAndAward(User $user): array
     {
         $newBadges = [];
 
-        // Check for various badge conditions
-        $badges = $this->determineBadges($user);
+        // Get all available badges
+        $badges = Badge::where('is_active', true)->get();
 
-        foreach ($badges as $badgeSlug) {
-            $badge = Badge::where('slug', $badgeSlug)->first();
-            if ($badge && !$user->badges()->where('badge_id', $badge->id)->exists()) {
+        foreach ($badges as $badge) {
+            // Skip if user already has this badge
+            if ($user->badges()->where('badge_id', $badge->id)->exists()) {
+                continue;
+            }
+
+            // Check if user meets the condition for this badge
+            if ($this->meetsCondition($user, $badge->condition)) {
                 $user->badges()->attach($badge->id, ['earned_at' => now()]);
                 $newBadges[] = $badge;
             }
@@ -25,96 +34,115 @@ class BadgeService
         return $newBadges;
     }
 
-    private function determineBadges(User $user): array
+    /**
+     * Check if user meets a badge condition
+     */
+    private function meetsCondition(User $user, array $condition): bool
     {
-        $badges = [];
-        $userXp = $user->xp;
-        $streak = $user->streak;
-        $completedLessons = $user->progress()
-            ->where('status', 'completed')
-            ->count();
-
-        // XP-based badges
-        if ($userXp?->total_xp >= 100) {
-            $badges[] = 'first_hundred_xp';
-        }
-        if ($userXp?->total_xp >= 500) {
-            $badges[] = 'five_hundred_xp';
-        }
-        if ($userXp?->total_xp >= 1000) {
-            $badges[] = 'thousand_xp';
+        // lessons_completed
+        if (isset($condition['lessons_completed'])) {
+            $completedCount = UserLessonProgress::where('user_id', $user->id)
+                ->where('status', UserLessonProgress::STATUS_COMPLETED)
+                ->count();
+            
+            if ($completedCount < $condition['lessons_completed']) {
+                return false;
+            }
         }
 
-        // Lesson-based badges
-        if ($completedLessons >= 1) {
-            $badges[] = 'first_lesson';
-        }
-        if ($completedLessons >= 5) {
-            $badges[] = 'five_lessons';
-        }
-        if ($completedLessons >= 10) {
-            $badges[] = 'ten_lessons';
+        // total_xp
+        if (isset($condition['total_xp'])) {
+            if (!$user->xp || $user->xp->total_xp < $condition['total_xp']) {
+                return false;
+            }
         }
 
-        // Streak-based badges
-        if ($streak?->current_streak >= 3) {
-            $badges[] = 'three_day_streak';
-        }
-        if ($streak?->current_streak >= 7) {
-            $badges[] = 'week_streak';
-        }
-        if ($streak?->longest_streak >= 30) {
-            $badges[] = 'month_streak';
+        // level requirement
+        if (isset($condition['level'])) {
+            if ($user->level < $condition['level']) {
+                return false;
+            }
         }
 
-        return array_unique($badges);
+        // current_streak
+        if (isset($condition['current_streak'])) {
+            if (!$user->streak || $user->streak->current_streak < $condition['current_streak']) {
+                return false;
+            }
+        }
+
+        // games_won
+        if (isset($condition['games_won'])) {
+            // Requires game tracking implementation
+            if (method_exists($user, 'gamesWon')) {
+                $gamesWon = $user->gamesWon()->count();
+                if ($gamesWon < $condition['games_won']) {
+                    return false;
+                }
+            }
+        }
+
+        // paths_completed
+        if (isset($condition['paths_completed'])) {
+            // Check if user completed specific number of learning paths
+            // This would require tracking completion of full paths
+            if (method_exists($user, 'completedPaths')) {
+                $completedPaths = $user->completedPaths()->count();
+                if ($completedPaths < $condition['paths_completed']) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
     }
 
-    public function getUnlockedBadges(User $user)
+    /**
+     * Award badge directly to user
+     */
+    public function awardBadge(User $user, Badge $badge): bool
     {
-        return $user->badges()
-            ->with('pivot')
-            ->orderBy('user_badges.earned_at', 'desc')
-            ->get();
+        if ($user->badges()->where('badge_id', $badge->id)->exists()) {
+            return false;
+        }
+
+        $user->badges()->attach($badge->id, ['earned_at' => now()]);
+        return true;
     }
 
-    public function getProgressBadges(User $user): array
+    /**
+     * Get badge progress for a user
+     */
+    public function getBadgeProgress(User $user, Badge $badge): array
     {
-        $allBadges = Badge::all();
-        $unlockedIds = $user->badges()->pluck('badge_id')->toArray();
+        $progress = [];
 
-        $badges = [];
-        foreach ($allBadges as $badge) {
-            $isUnlocked = in_array($badge->id, $unlockedIds);
-            $progress = $this->getBadgeProgress($user, $badge->slug);
-
-            $badges[] = [
-                'badge' => $badge,
-                'unlocked' => $isUnlocked,
-                'progress' => $progress,
+        if (isset($badge->condition['lessons_completed'])) {
+            $completed = UserLessonProgress::where('user_id', $user->id)
+                ->where('status', UserLessonProgress::STATUS_COMPLETED)
+                ->count();
+            $progress['lessons'] = [
+                'current' => $completed,
+                'needed' => $badge->condition['lessons_completed'],
             ];
         }
 
-        return $badges;
-    }
+        if (isset($badge->condition['total_xp'])) {
+            $current = $user->xp?->total_xp ?? 0;
+            $progress['xp'] = [
+                'current' => $current,
+                'needed' => $badge->condition['total_xp'],
+            ];
+        }
 
-    private function getBadgeProgress(User $user, string $slug): array
-    {
-        $userXp = $user->xp?->total_xp ?? 0;
-        $completedLessons = $user->progress()->where('status', 'completed')->count();
-        $streak = $user->streak?->current_streak ?? 0;
+        if (isset($badge->condition['current_streak'])) {
+            $current = $user->streak?->current_streak ?? 0;
+            $progress['streak'] = [
+                'current' => $current,
+                'needed' => $badge->condition['current_streak'],
+            ];
+        }
 
-        return match ($slug) {
-            'first_hundred_xp' => ['current' => min($userXp, 100), 'target' => 100],
-            'five_hundred_xp' => ['current' => min($userXp, 500), 'target' => 500],
-            'thousand_xp' => ['current' => min($userXp, 1000), 'target' => 1000],
-            'first_lesson' => ['current' => min($completedLessons, 1), 'target' => 1],
-            'five_lessons' => ['current' => min($completedLessons, 5), 'target' => 5],
-            'ten_lessons' => ['current' => min($completedLessons, 10), 'target' => 10],
-            'three_day_streak' => ['current' => min($streak, 3), 'target' => 3],
-            'week_streak' => ['current' => min($streak, 7), 'target' => 7],
-            'month_streak' => ['current' => min($streak, 30), 'target' => 30],
-            default => ['current' => 0, 'target' => 1],
-        };
+        return $progress;
     }
 }

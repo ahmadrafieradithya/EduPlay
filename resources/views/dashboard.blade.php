@@ -4,14 +4,15 @@
 @section('content')
 
 @php
-    $user = auth()->user();
-    $totalXp = $user->xp?->total_xp ?? 0;
-    $level = $user->xp?->level;
+    // Variables provided by DashboardController
+    $user = $user ?? auth()->user();
+    $totalXp = $totalXp ?? ($user->xp?->total_xp ?? 0);
+    $level = $level ?? ($user->xp?->level ?? null);
     $levelNum = $level?->level_number ?? 1;
-    $currentStreak = $user->streak?->current_streak ?? 0;
-    $lessonsCompleted = $user->progress()->where('status', 'completed')->count();
-    $badgesCount = $user->badges()->count();
-    $rankInClass = 0; // akan diisi dari leaderboard
+    $currentStreak = $currentStreak ?? ($user->streak?->current_streak ?? 0);
+    $lessonsCompleted = $lessonsCompleted ?? 0;
+    $badgesCount = $badgesCount ?? ($user->badges()->count() ?? 0);
+    $rankInClass = 0; // will be calculated elsewhere if needed
 @endphp
 
 {{-- Hero Section --}}
@@ -88,12 +89,7 @@
         </div>
         
         @php
-            $inProgressLessons = $user->progress()
-                ->where('status', 'in_progress')
-                ->with('lesson.topic.learningPath')
-                ->latest()
-                ->take(3)
-                ->get();
+            $inProgressLessons = $inProgressLessons ?? collect();
         @endphp
 
         @if($inProgressLessons->isEmpty())
@@ -132,15 +128,11 @@
         </div>
         
         @php
-            $topStudents = \App\Models\UserXp::with('user')
-                ->whereHas('user', fn($q) => $q->where('school_id', auth()->user()->school_id))
-                ->orderBy('total_xp', 'desc')
-                ->take(5)
-                ->get();
-        @endphp
+                $topStudents = $topStudents ?? collect();
+            @endphp
 
-        <div class="space-y-2">
-            @foreach($topStudents as $i => $entry)
+            <div class="space-y-2">
+                @foreach($topStudents as $i => $entry)
             @php $isMe = $entry->user_id === auth()->id(); @endphp
             <div class="flex items-center gap-2.5 p-2 rounded-lg {{ $isMe ? 'bg-indigo-50 dark:bg-indigo-950 border border-indigo-200 dark:border-indigo-800' : '' }}">
                 <span class="text-xs font-semibold w-4 text-center {{ match($i) { 0 => 'text-amber-500', 1 => 'text-slate-400', 2 => 'text-orange-700', default => 'text-slate-400' } }}">
@@ -158,6 +150,35 @@
         </div>
     </div>
 
+</div>
+
+{{-- Featured Games --}}
+<div class="mt-6">
+    <h3 class="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-3">Permainan Unggulan</h3>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        @php $featuredGames = $featuredGames ?? collect(); @endphp
+        @if($featuredGames->isEmpty())
+            <div class="col-span-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-6 text-center">
+                <p class="text-slate-500">Belum ada game unggulan. Jalankan seeder atau publikasikan game.</p>
+            </div>
+        @else
+            @foreach($featuredGames as $game)
+            <div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 flex flex-col">
+                <div class="flex items-center justify-between mb-3">
+                    <div>
+                        <h4 class="font-bold text-slate-800 dark:text-slate-200">{{ $game->title }}</h4>
+                        <p class="text-xs text-slate-500">{{ $game->description }}</p>
+                    </div>
+                    <div class="text-2xl">{{ $game->icon ?? '🎮' }}</div>
+                </div>
+                <div class="mt-auto flex items-center justify-between">
+                    <a href="{{ route('games.play', ['game' => $game->id, 'level' => $game->levels->first()?->id ?? 0]) }}" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-semibold">▶ Main</a>
+                    <div class="text-xs text-slate-400">Level: {{ $game->levels->count() }}</div>
+                </div>
+            </div>
+            @endforeach
+        @endif
+    </div>
 </div>
 
 @endsection
