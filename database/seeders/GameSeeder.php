@@ -4,427 +4,245 @@ namespace Database\Seeders;
 
 use App\Models\Game;
 use App\Models\GameLevel;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 class GameSeeder extends Seeder
 {
-    use WithoutModelEvents;
-
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        // Game 1: Typing Race
-        $typingRace = Game::updateOrCreate(
-            ['title' => 'Typing Race', 'type' => 'typing_race'],
+        $this->seedTypingRace();
+        $this->seedCodePuzzle();
+    }
+
+    private function seedTypingRace(): void
+    {
+        $game = Game::updateOrCreate(
+            ['slug' => 'typing-race'],
             [
-                'type' => 'typing_race',
-                'config' => [
-                    'description' => 'Berlomba mengetik code snippet secara akurat',
-                    'difficulty' => 'beginner',
-                ],
-                'is_active' => true,
+                'title'       => 'Typing Race',
+                'slug'        => 'typing-race',
+                'description' => 'Uji kecepatan mengetik kode kamu! Semakin cepat dan akurat, semakin tinggi skor kamu.',
+                'type'        => 'typing_race',
+                'icon'        => '⌨️',
+                'is_active'   => true,
             ]
         );
 
+        // Level 1 - HTML Texts (10+ texts)
         GameLevel::updateOrCreate(
-            ['game_id' => $typingRace->id, 'level_number' => 1],
+            ['game_id' => $game->id, 'order' => 1],
             [
-                'title' => 'Dasar Typing',
-                'content' => [
+                'game_id'           => $game->id,
+                'title'             => 'HTML Dasar',
+                'description'       => 'Ketik tag-tag HTML dasar dengan cepat dan akurat.',
+                'order'             => 1,
+                'time_limit'        => 60,
+                'min_score_to_pass' => 50,
+                'xp_reward'         => 20,
+                'content'           => json_encode([
                     'texts' => [
-                        'echo "Hello World";',
-                        '$name = "John";',
-                        'function greet($name) { return $name; }',
-                        'for ($i = 0; $i < 10; $i++) { echo $i; }',
+                        '<h1>Halo Dunia!</h1>',
+                        '<p>Belajar HTML itu menyenangkan.</p>',
+                        '<a href="index.html">Kembali ke Beranda</a>',
+                        '<img src="foto.jpg" alt="Foto Saya">',
+                        '<ul><li>Item Pertama</li><li>Item Kedua</li></ul>',
+                        '<!DOCTYPE html>',
+                        '<input type="text" placeholder="Nama kamu...">',
+                        '<button type="submit">Kirim Formulir</button>',
+                        '<div class="container"><p>Konten di sini</p></div>',
+                        '<table><tr><td>Data</td></tr></table>',
+                        '<span style="color: red;">Teks Merah</span>',
+                        '<h2>Subjudul Penting</h2>',
                     ],
                     'target_wpm' => 20,
-                    'difficulty' => 'easy',
-                ],
-                'time_limit' => 120,
-                'xp_reward' => 25,
+                    'language'   => 'html',
+                ]),
+            ]
+        );
+
+        // Level 2 - PHP Texts (10+ texts)
+        GameLevel::updateOrCreate(
+            ['game_id' => $game->id, 'order' => 2],
+            [
+                'game_id'           => $game->id,
+                'title'             => 'PHP Menengah',
+                'description'       => 'Ketik sintaks PHP dengan cepat. Perhatikan tanda dolar dan titik koma!',
+                'order'             => 2,
+                'time_limit'        => 60,
+                'min_score_to_pass' => 50,
+                'xp_reward'         => 30,
+                'content'           => json_encode([
+                    'texts' => [
+                        '$nama = "Ahmad Rafie";',
+                        'echo "Halo, " . $nama . "!";',
+                        'if ($umur >= 17) { echo "Boleh masuk"; }',
+                        'for ($i = 1; $i <= 10; $i++) { echo $i; }',
+                        'function hitung($a, $b) { return $a + $b; }',
+                        '$array = ["HTML", "CSS", "PHP", "Laravel"];',
+                        'foreach ($siswa as $s) { echo $s->nama; }',
+                        '$hasil = array_filter($data, fn($x) => $x > 0);',
+                        'class Siswa { public string $nama; }',
+                        'echo str_word_count("Hello World Laravel");',
+                        '$x = isset($_POST["name"]) ? $_POST["name"] : "Guest";',
+                        'date("Y-m-d H:i:s");',
+                    ],
+                    'target_wpm' => 15,
+                    'language'   => 'php',
+                ]),
+            ]
+        );
+
+        // Level 3 - Laravel Texts (10+ texts)
+        GameLevel::updateOrCreate(
+            ['game_id' => $game->id, 'order' => 3],
+            [
+                'game_id'           => $game->id,
+                'title'             => 'Laravel Expert',
+                'description'       => 'Tantangan tertinggi! Ketik sintaks Laravel yang kompleks.',
+                'order'             => 3,
+                'time_limit'        => 60,
+                'min_score_to_pass' => 50,
+                'xp_reward'         => 50,
+                'content'           => json_encode([
+                    'texts' => [
+                        'Route::get("/dashboard", [DashboardController::class, "index"]);',
+                        '$users = User::where("active", true)->orderBy("name")->get();',
+                        'return view("dashboard", compact("user", "posts"));',
+                        'User::create(["name" => $request->name, "email" => $request->email]);',
+                        '$user = User::findOrFail($id);',
+                        'return redirect()->route("home")->with("success", "Berhasil!");',
+                        'Schema::create("posts", function (Blueprint $table) {',
+                        '$request->validate(["email" => "required|email|unique:users"]);',
+                        'public function posts(): HasMany { return $this->hasMany(Post::class); }',
+                        'php artisan make:controller PostController --resource',
+                        '$post = Post::with("user")->first();',
+                        'return response()->json($data, 200);',
+                    ],
+                    'target_wpm' => 12,
+                    'language'   => 'php',
+                ]),
+            ]
+        );
+    }
+
+    private function seedCodePuzzle(): void
+    {
+        $game = Game::updateOrCreate(
+            ['slug' => 'code-puzzle'],
+            [
+                'title'       => 'Code Puzzle',
+                'slug'        => 'code-puzzle',
+                'description' => 'Susun potongan kode menjadi program yang benar. Uji logika dan pemahamanmu!',
+                'type'        => 'code_puzzle',
+                'icon'        => '🧩',
+                'is_active'   => true,
+            ]
+        );
+
+        // Level 1 - HTML Puzzle
+        GameLevel::updateOrCreate(
+            ['game_id' => $game->id, 'order' => 1],
+            [
+                'game_id'           => $game->id,
+                'title'             => 'Susun Halaman HTML',
+                'description'       => 'Susun potongan kode HTML menjadi struktur halaman yang benar.',
+                'order'             => 1,
+                'time_limit'        => 120,
                 'min_score_to_pass' => 60,
-                'is_active' => true,
-            ]
-        );
-
-        GameLevel::updateOrCreate(
-            ['game_id' => $typingRace->id, 'level_number' => 2],
-            [
-                'title' => 'Intermediate Typing',
-                'content' => [
-                    'texts' => [
-                        'class User { public function __construct($name) { $this->name = $name; } }',
-                        'array_filter($items, fn($item) => $item["active"] == true)',
-                        '$data = ["name" => "John", "age" => 25, "email" => "john@example.com"];',
-                        'if ($user && $user->isAdmin() && $user->canDelete($resource)) { $resource->delete(); }',
+                'xp_reward'         => 30,
+                'content'           => json_encode([
+                    'description' => 'Susun tag-tag HTML berikut menjadi struktur dokumen HTML yang valid!',
+                    'pieces'      => [
+                        '<!DOCTYPE html>',
+                        '<html lang="id">',
+                        '<head>',
+                        '<title>Halaman Saya</title>',
+                        '</head>',
+                        '<body>',
+                        '<h1>Halo Dunia!</h1>',
+                        '</body>',
+                        '</html>',
                     ],
-                    'target_wpm' => 35,
-                    'difficulty' => 'medium',
-                ],
-                'time_limit' => 150,
-                'xp_reward' => 40,
-                'min_score_to_pass' => 70,
-                'is_active' => true,
-            ]
-        );
-
-        GameLevel::updateOrCreate(
-            ['game_id' => $typingRace->id, 'level_number' => 3],
-            [
-                'title' => 'Expert Typing',
-                'content' => [
-                    'texts' => [
-                        'Route::middleware(["auth:sanctum"])->group(function () { Route::apiResource("users", UserController::class); });',
-                        '$users = User::where("is_active", true)->with(["posts", "comments"])->paginate(15);',
-                        'DB::transaction(function () { $user = User::create($data); $user->syncRoles($roles); Log::info("User created", ["id" => $user->id]); });',
-                        'namespace App\\Http\\Controllers; use Illuminate\\Http\\Request; class UserController extends Controller { public function index() { return User::all(); } }',
-                    ],
-                    'target_wpm' => 50,
-                    'difficulty' => 'hard',
-                ],
-                'time_limit' => 180,
-                'xp_reward' => 60,
-                'min_score_to_pass' => 75,
-                'is_active' => true,
-            ]
-        );
-
-        // Game 2: Bug Fix
-        $bugFix = Game::updateOrCreate(
-            ['title' => 'Bug Fix', 'type' => 'bug_fix'],
-            [
-                'type' => 'bug_fix',
-                'config' => [
-                    'description' => 'Temukan dan perbaiki bug dalam kode',
-                    'difficulty' => 'beginner',
-                ],
-                'is_active' => true,
-            ]
-        );
-
-        GameLevel::updateOrCreate(
-            ['game_id' => $bugFix->id, 'level_number' => 1],
-            [
-                'title' => 'Logic Error',
-                'content' => [
-                    'description' => 'Ada bug dalam logika perulangan. Temukan dan perbaiki!',
-                    'buggy_code' => '$sum = 0; for ($i = 1; $i < 10; $i--) { $sum += $i; } echo $sum;',
-                    'options' => [
-                        '$i > 10',
-                        '$i <= 10',
-                        '$i++',
-                        '$i -= 1',
-                    ],
-                    'correct_answers' => ['$i++'],
-                ],
-                'time_limit' => 90,
-                'xp_reward' => 30,
-                'min_score_to_pass' => 80,
-                'is_active' => true,
-            ]
-        );
-
-        GameLevel::updateOrCreate(
-            ['game_id' => $bugFix->id, 'level_number' => 2],
-            [
-                'title' => 'Type Error',
-                'content' => [
-                    'description' => 'Variabel $age seharusnya integer, tetapi dikirim sebagai string.',
-                    'buggy_code' => 'function checkAdult($age) { if ($age >= 18) { return "Adult"; } return "Minor"; } checkAdult("25");',
-                    'options' => [
-                        'Ubah "25" menjadi (int)"25"',
-                        'Ubah parameter menjadi (int)$age',
-                        'Gunakan intval($age) di awal function',
-                        'Semua jawaban benar',
-                    ],
-                    'correct_answers' => ['Semua jawaban benar'],
-                ],
-                'time_limit' => 90,
-                'xp_reward' => 35,
-                'min_score_to_pass' => 80,
-                'is_active' => true,
-            ]
-        );
-
-        GameLevel::updateOrCreate(
-            ['game_id' => $bugFix->id, 'level_number' => 3],
-            [
-                'title' => 'Database Query Bug',
-                'content' => [
-                    'description' => 'Query ini tidak mengembalikan hasil yang diharapkan.',
-                    'buggy_code' => '$users = User::where("is_active", "1")->get(); // Seharusnya aktif tapi masih mendapat inactive',
-                    'options' => [
-                        'Ubah "1" menjadi true',
-                        'Ubah \'is_active\', "1" menjadi \'is_active\', true',
-                        'Gunakan whereRaw',
-                        'Tambahkan ->toSql() untuk debug',
-                    ],
-                    'correct_answers' => ['Ubah \'is_active\', "1" menjadi \'is_active\', true'],
-                ],
-                'time_limit' => 100,
-                'xp_reward' => 45,
-                'min_score_to_pass' => 80,
-                'is_active' => true,
-            ]
-        );
-
-        // Game 3: Code Puzzle
-        $codePuzzle = Game::updateOrCreate(
-            ['title' => 'Code Puzzle', 'type' => 'code_puzzle'],
-            [
-                'type' => 'code_puzzle',
-                'config' => [
-                    'description' => 'Susun potongan kode dalam urutan yang benar',
-                    'difficulty' => 'intermediate',
-                ],
-                'is_active' => true,
-            ]
-        );
-
-        GameLevel::updateOrCreate(
-            ['game_id' => $codePuzzle->id, 'level_number' => 1],
-            [
-                'title' => 'Simple Function',
-                'content' => [
-                    'pieces' => [
-                        'function sum($a, $b) {',
-                        'return $a + $b;',
-                        '}',
-                        'echo sum(5, 3);',
-                    ],
-                    'correct_order' => [0, 1, 2, 3],
+                    'correct_order' => [0, 1, 2, 3, 4, 5, 6, 7, 8],
                     'hints' => [
-                        'Function definition dimulai dengan nama function',
-                        'Return statement di dalam function',
-                        'Closing bracket penutup function',
-                        'Panggil function dengan argumen',
+                        'DOCTYPE selalu di baris pertama',
+                        'Tag html membungkus segalanya',
+                        'head berisi metadata, body berisi konten',
+                        'Setiap tag pembuka butuh tag penutup',
                     ],
-                ],
-                'time_limit' => 120,
-                'xp_reward' => 35,
-                'min_score_to_pass' => 85,
-                'is_active' => true,
+                ]),
             ]
         );
 
+        // Level 2 - PHP Puzzle
         GameLevel::updateOrCreate(
-            ['game_id' => $codePuzzle->id, 'level_number' => 2],
+            ['game_id' => $game->id, 'order' => 2],
             [
-                'title' => 'Class Definition',
-                'content' => [
-                    'pieces' => [
-                        'class User {',
-                        'public $name;',
-                        'public function __construct($name) {',
-                        '$this->name = $name;',
+                'game_id'           => $game->id,
+                'title'             => 'Fungsi PHP',
+                'description'       => 'Susun potongan kode PHP menjadi fungsi yang benar.',
+                'order'             => 2,
+                'time_limit'        => 120,
+                'min_score_to_pass' => 60,
+                'xp_reward'         => 40,
+                'content'           => json_encode([
+                    'description' => 'Susun baris-baris kode ini menjadi fungsi PHP yang menghitung faktorial!',
+                    'pieces'      => [
+                        '<?php',
+                        'function faktorial($n) {',
+                        '    if ($n <= 1) {',
+                        '        return 1;',
+                        '    }',
+                        '    return $n * faktorial($n - 1);',
                         '}',
-                        '}',
-                        '$user = new User("John");',
+                        'echo faktorial(5);',
+                        '?>',
                     ],
-                    'correct_order' => [0, 1, 2, 3, 4, 5, 6],
+                    'correct_order' => [0, 1, 2, 3, 4, 5, 6, 7, 8],
                     'hints' => [
-                        'Class definition',
-                        'Property deklarasi',
-                        'Constructor method',
-                        'Assign ke property',
-                        'Close constructor',
-                        'Close class',
-                        'Instantiate object',
+                        'PHP dibuka dengan <?php',
+                        'Fungsi dideklarasikan dengan function',
+                        'Kondisi dasar (base case) di cek pertama',
+                        'Rekursi memanggil fungsi itu sendiri',
                     ],
-                ],
-                'time_limit' => 150,
-                'xp_reward' => 45,
-                'min_score_to_pass' => 85,
-                'is_active' => true,
+                ]),
             ]
         );
 
+        // Level 3 - Laravel Puzzle
         GameLevel::updateOrCreate(
-            ['game_id' => $codePuzzle->id, 'level_number' => 3],
+            ['game_id' => $game->id, 'order' => 3],
             [
-                'title' => 'Array Filter Logic',
-                'content' => [
-                    'pieces' => [
-                        '$numbers = [1, 2, 3, 4, 5];',
-                        '$filtered = array_filter($numbers,',
-                        'fn($num) => $num > 2',
-                        ');',
-                        'foreach ($filtered as $num) {',
-                        'echo $num . " ";',
+                'game_id'           => $game->id,
+                'title'             => 'Laravel Controller',
+                'description'       => 'Susun method store() di Laravel Controller dengan benar.',
+                'order'             => 3,
+                'time_limit'        => 150,
+                'min_score_to_pass' => 60,
+                'xp_reward'         => 60,
+                'content'           => json_encode([
+                    'description' => 'Susun kode method store() pada Laravel Controller yang menyimpan data ke database!',
+                    'pieces'      => [
+                        'public function store(Request $request)',
+                        '{',
+                        '    $validated = $request->validate([',
+                        "        'title' => 'required|max:255',",
+                        "        'body'  => 'required',",
+                        '    ]);',
+                        '    Post::create($validated);',
+                        "    return redirect()->route('posts.index')",
+                        "        ->with('success', 'Post berhasil dibuat!');",
                         '}',
                     ],
-                    'correct_order' => [0, 1, 2, 3, 4, 5, 6],
+                    'correct_order' => [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
                     'hints' => [
-                        'Initialize array',
-                        'Start array_filter',
-                        'Arrow function dengan condition',
-                        'Close array_filter',
-                        'Loop hasil filter',
-                        'Echo nilai',
-                        'Close loop',
+                        'Method dimulai dengan public function',
+                        'Selalu validasi input dulu sebelum simpan',
+                        'Post::create() menyimpan ke database',
+                        'redirect() mengembalikan user ke halaman lain',
                     ],
-                ],
-                'time_limit' => 150,
-                'xp_reward' => 50,
-                'min_score_to_pass' => 85,
-                'is_active' => true,
-            ]
-        );
-
-        // Game 4: Output Guessing
-        $outputGuessing = Game::updateOrCreate(
-            ['title' => 'Output Guessing', 'type' => 'output_guessing'],
-            [
-                'type' => 'output_guessing',
-                'config' => [
-                    'description' => 'Tebak output dari kode yang diberikan',
-                    'difficulty' => 'beginner',
-                ],
-                'is_active' => true,
-            ]
-        );
-
-        GameLevel::updateOrCreate(
-            ['game_id' => $outputGuessing->id, 'level_number' => 1],
-            [
-                'title' => 'Simple Output',
-                'content' => [
-                    'question' => 'Apa output dari kode ini?',
-                    'code' => '$x = 5; $y = 3; echo $x + $y;',
-                    'options' => ['8', '15', '53', 'Error'],
-                    'correct' => 0,
-                ],
-                'time_limit' => 60,
-                'xp_reward' => 20,
-                'min_score_to_pass' => 100,
-                'is_active' => true,
-            ]
-        );
-
-        GameLevel::updateOrCreate(
-            ['game_id' => $outputGuessing->id, 'level_number' => 2],
-            [
-                'title' => 'String Concatenation',
-                'content' => [
-                    'question' => 'Output dari kode berikut?',
-                    'code' => '$first = "Hello"; $second = "World"; echo $first . " " . $second;',
-                    'options' => ['HelloWorld', 'Hello World', 'Hello  World', 'Error'],
-                    'correct' => 1,
-                ],
-                'time_limit' => 60,
-                'xp_reward' => 25,
-                'min_score_to_pass' => 100,
-                'is_active' => true,
-            ]
-        );
-
-        GameLevel::updateOrCreate(
-            ['game_id' => $outputGuessing->id, 'level_number' => 3],
-            [
-                'title' => 'Loop Output',
-                'content' => [
-                    'question' => 'Output dari kode berikut?',
-                    'code' => 'for ($i = 1; $i <= 3; $i++) { echo $i; } echo " Done";',
-                    'options' => ['123 Done', '1 2 3 Done', '0 1 2 Done', 'Done'],
-                    'correct' => 0,
-                ],
-                'time_limit' => 75,
-                'xp_reward' => 30,
-                'min_score_to_pass' => 100,
-                'is_active' => true,
-            ]
-        );
-
-        // Game 5: HTML Builder
-        $htmlBuilder = Game::updateOrCreate(
-            ['title' => 'HTML Builder', 'type' => 'html_builder'],
-            [
-                'type' => 'html_builder',
-                'config' => [
-                    'description' => 'Bangun halaman HTML sesuai dengan requirement',
-                    'difficulty' => 'beginner',
-                ],
-                'is_active' => true,
-            ]
-        );
-
-        GameLevel::updateOrCreate(
-            ['game_id' => $htmlBuilder->id, 'level_number' => 1],
-            [
-                'title' => 'Basic Page Structure',
-                'content' => [
-                    'question' => 'Buat halaman HTML dengan judul "My First Page" dan sebuah heading "Welcome"',
-                    'requirements' => [
-                        'Gunakan DOCTYPE html',
-                        'Tambahkan title "My First Page"',
-                        'Heading h1 dengan teks "Welcome"',
-                        'Minimal 1 paragraph',
-                    ],
-                    'hints' => [
-                        'Gunakan <!DOCTYPE html>',
-                        'Title di dalam head tag',
-                        'Konten di dalam body tag',
-                    ],
-                ],
-                'time_limit' => 120,
-                'xp_reward' => 40,
-                'min_score_to_pass' => 80,
-                'is_active' => true,
-            ]
-        );
-
-        GameLevel::updateOrCreate(
-            ['game_id' => $htmlBuilder->id, 'level_number' => 2],
-            [
-                'title' => 'Navigation Page',
-                'content' => [
-                    'question' => 'Buat halaman dengan navbar sederhana',
-                    'requirements' => [
-                        'Navigation dengan 3 link (Home, About, Contact)',
-                        'Main section dengan heading dan paragraf',
-                        'Footer dengan copyright',
-                        'Gunakan semantic HTML',
-                    ],
-                    'hints' => [
-                        'Gunakan nav, main, footer tags',
-                        'List untuk navigation items',
-                        'Link ke pages berbeda',
-                    ],
-                ],
-                'time_limit' => 180,
-                'xp_reward' => 50,
-                'min_score_to_pass' => 80,
-                'is_active' => true,
-            ]
-        );
-
-        GameLevel::updateOrCreate(
-            ['game_id' => $htmlBuilder->id, 'level_number' => 3],
-            [
-                'title' => 'Portfolio Section',
-                'content' => [
-                    'question' => 'Buat section portfolio dengan grid layout',
-                    'requirements' => [
-                        'Heading "My Projects"',
-                        'Minimal 3 project cards dengan gambar dan deskripsi',
-                        'Link ke project atau live demo',
-                        'Grid layout responsif',
-                        'Include CSS class untuk styling',
-                    ],
-                    'hints' => [
-                        'Gunakan section dan article tags',
-                        'Image dengan alt text',
-                        'Class names untuk CSS styling',
-                        'Semantic markup',
-                    ],
-                ],
-                'time_limit' => 240,
-                'xp_reward' => 60,
-                'min_score_to_pass' => 80,
-                'is_active' => true,
+                ]),
             ]
         );
     }

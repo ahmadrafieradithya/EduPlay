@@ -1,252 +1,211 @@
-@php
-    $data = json_decode($level->content, true);
-    $hints = $data['hints'] ?? [];
-@endphp
+<div class="min-h-screen bg-gray-950 text-white p-4"
+     x-data="{ selected: null }">
 
-<div class="w-full max-w-4xl mx-auto">
-    <!-- Timer and Header -->
-    <div class="mb-6 rounded-3xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-950">
-        <div class="flex items-center justify-between mb-4">
-            <div>
-                <h2 class="text-2xl font-semibold text-slate-900 dark:text-slate-100">
-                    {{ $data['description'] ?? 'Code Puzzle' }}
-                </h2>
-                <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">
-                    Bahasa: <span class="font-mono text-indigo-600 dark:text-indigo-400">{{ strtoupper($data['language'] ?? 'unknown') }}</span>
-                </p>
-            </div>
-            <div class="text-right">
-                <div class="text-5xl font-bold {{ $timeRemaining <= 10 ? 'text-red-600 dark:text-red-400' : 'text-indigo-600 dark:text-indigo-400' }}">
-                    {{ str_pad($timeRemaining, 2, '0', STR_PAD_LEFT) }}s
+    {{-- ===================== START SCREEN ===================== --}}
+    @if (!$isStarted)
+        <div class="max-w-2xl mx-auto mt-16 text-center">
+            <div class="bg-gray-900 rounded-2xl p-8 border border-gray-800 shadow-xl">
+                <div class="text-5xl mb-4">🧩</div>
+                <h1 class="text-3xl font-bold text-white mb-2">{{ $level->title }}</h1>
+                <p class="text-gray-400 mb-6">{{ $level->description }}</p>
+
+                <div class="grid grid-cols-3 gap-4 mb-8">
+                    <div class="bg-gray-800 rounded-xl p-4">
+                        <div class="text-2xl font-bold text-indigo-400">{{ count($correctOrder) }}</div>
+                        <div class="text-sm text-gray-400">Potongan Kode</div>
+                    </div>
+                    <div class="bg-gray-800 rounded-xl p-4">
+                        <div class="text-2xl font-bold text-yellow-400">{{ $level->time_limit }}s</div>
+                        <div class="text-sm text-gray-400">Batas Waktu</div>
+                    </div>
+                    <div class="bg-gray-800 rounded-xl p-4">
+                        <div class="text-2xl font-bold text-green-400">+{{ $level->xp_reward }}</div>
+                        <div class="text-sm text-gray-400">XP Reward</div>
+                    </div>
                 </div>
-                <p class="text-xs text-slate-500 dark:text-slate-400">Sisa Waktu</p>
+
+                @php
+                    $content = is_array($level->content) ? $level->content : json_decode($level->content, true);
+                @endphp
+
+                @if (!empty($content['description']))
+                    <div class="bg-gray-800 rounded-xl p-4 mb-6 text-left">
+                        <p class="text-sm text-gray-300 font-semibold mb-2">📋 Deskripsi Puzzle:</p>
+                        <p class="text-gray-400 text-sm">{{ $content['description'] }}</p>
+                    </div>
+                @endif
+
+                <button wire:click="start"
+                    class="w-full py-3 px-6 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition-all transform hover:scale-105">
+                    🚀 Mulai Puzzle!
+                </button>
+
+                <a href="{{ route('games.arena') }}"
+                    class="block mt-4 text-gray-500 hover:text-gray-300 text-sm transition-colors">
+                    ← Kembali ke Game Arena
+                </a>
             </div>
         </div>
+    @endif
 
-        @if(!$isSubmitted)
-            <div class="h-1 bg-slate-200 rounded-full overflow-hidden dark:bg-slate-800">
-                <div class="h-full {{ $timeRemaining <= 10 ? 'bg-red-500' : 'bg-indigo-500' }} transition-all duration-1000"
-                     style="width: {{ ($timeRemaining / $totalTime) * 100 }}%"></div>
+    {{-- ===================== GAME SCREEN ===================== --}}
+    @if ($isStarted && !$isFinished)
+        <div class="max-w-4xl mx-auto" wire:poll.1000ms="tick">
+
+            {{-- Header Info --}}
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold">🧩 {{ $level->title }}</h2>
+                <div class="flex items-center gap-4">
+                    @if ($showHint)
+                        <span class="text-xs bg-yellow-900 text-yellow-300 px-3 py-1 rounded-full">
+                            💡 {{ $hint }}
+                        </span>
+                    @endif
+                    <span class="text-sm {{ $timeLeft <= 10 ? 'text-red-400' : 'text-green-400' }} font-mono font-bold">
+                        ⏱ {{ $timeLeft }}s
+                    </span>
+                </div>
             </div>
-        @endif
-    </div>
 
-    @if(!$isSubmitted)
-        <!-- Game Content -->
-        <div class="rounded-3xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-950 mb-6">
-            <!-- Instructions -->
-            <div class="mb-6 p-4 rounded-2xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
-                <p class="text-sm text-blue-900 dark:text-blue-100">
-                    📋 <strong>Instruksi:</strong> Drag & drop potongan kode di bawah untuk menyusun urutan yang benar.
-                </p>
+            {{-- Timer Bar --}}
+            @php $pct = $level->time_limit > 0 ? ($timeLeft / $level->time_limit) * 100 : 0; @endphp
+            <div class="w-full bg-gray-800 rounded-full h-2 mb-6">
+                <div class="h-2 rounded-full transition-all duration-1000 {{ $timeLeft <= 10 ? 'bg-red-500' : 'bg-green-500' }}"
+                     style="width: {{ $pct }}%"></div>
             </div>
 
-            <!-- Code Pieces Container -->
-            <div x-data="codeDropzone()" class="space-y-4">
-                <!-- Target Area (where user orders pieces) -->
-                <div class="mb-6">
-                    <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
-                        ✍️ Susun Kode (Drag kesini):
-                    </label>
-                    <div x-ref="sortable"
-                         @sort="$wire.dispatch('updateOrder', { order: $event.detail.order })"
-                         class="min-h-48 rounded-2xl border-2 border-dashed border-indigo-300 bg-indigo-50/50 p-4 dark:border-indigo-700 dark:bg-indigo-900/10 space-y-3">
-                        @forelse($userOrder as $piece)
-                            <div draggable="true" 
-                                 data-id="{{ $piece['id'] }}"
-                                 class="flex items-center gap-2 rounded-xl bg-white p-3 shadow-sm cursor-move dark:bg-slate-900 border-l-4 border-indigo-500 hover:shadow-md transition">
-                                <svg class="w-4 h-4 text-slate-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M7 2a1 1 0 11-2 0 1 1 0 012 0zM7 6a1 1 0 11-2 0 1 1 0 012 0zM7 10a1 1 0 11-2 0 1 1 0 012 0zM13 2a1 1 0 11-2 0 1 1 0 012 0zM13 6a1 1 0 11-2 0 1 1 0 012 0zM13 10a1 1 0 11-2 0 1 1 0 012 0z"></path>
-                                </svg>
-                                <code class="flex-1 font-mono text-sm text-slate-700 dark:text-slate-300">
-                                    {{ $piece['content'] }}
-                                </code>
-                            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                {{-- POOL AREA --}}
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wider">
+                        🃏 Kode Tersedia (klik untuk pilih)
+                    </h3>
+                    <div class="space-y-2 min-h-[200px]">
+                        @forelse ($pieces as $idx => $piece)
+                            <button
+                                x-on:click="selected = {{ $idx }}"
+                                :class="selected === {{ $idx }}
+                                    ? 'ring-2 ring-indigo-400 bg-indigo-900/40'
+                                    : 'bg-gray-800 hover:bg-gray-700'"
+                                class="w-full text-left px-4 py-2 rounded-lg font-mono text-sm text-green-300 transition-all border border-gray-700 cursor-pointer">
+                                {{ $piece['text'] }}
+                            </button>
                         @empty
-                            <div class="text-center py-8">
-                                <p class="text-slate-500 dark:text-slate-400">Drag potongan kode kesini...</p>
+                            <div class="text-center text-gray-600 py-8 border-2 border-dashed border-gray-800 rounded-xl">
+                                Semua piece sudah ditempatkan!
                             </div>
                         @endforelse
                     </div>
                 </div>
 
-                <!-- Available Pieces (drag from here) -->
+                {{-- SLOTS AREA --}}
                 <div>
-                    <label class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">
-                        📦 Potongan Kode:
-                    </label>
-                    <div class="grid grid-cols-1 gap-3">
-                        @foreach($pieces as $piece)
-                            @if(!in_array($piece, $userOrder))
-                                <div draggable="true"
-                                     data-id="{{ $piece['id'] }}"
-                                     class="rounded-xl bg-slate-100 p-3 cursor-grab hover:bg-slate-200 active:cursor-grabbing dark:bg-slate-800 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 transition">
-                                    <code class="font-mono text-sm text-slate-700 dark:text-slate-300">
-                                        {{ $piece['content'] }}
-                                    </code>
-                                </div>
-                            @endif
+                    <h3 class="text-sm font-semibold text-gray-400 mb-3 uppercase tracking-wider">
+                        📋 Susun di Sini (klik slot untuk menempatkan)
+                    </h3>
+                    <div class="space-y-2">
+                        @foreach ($placedPieces as $slotIdx => $placed)
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-gray-600 w-5 text-right flex-shrink-0">{{ $slotIdx + 1 }}</span>
+
+                                @if ($placed !== null)
+                                    {{-- Slot terisi --}}
+                                    <div class="flex-1 flex items-center justify-between bg-indigo-900/30 border border-indigo-700 rounded-lg px-4 py-2">
+                                        <span class="font-mono text-sm text-indigo-300">{{ $placed['text'] }}</span>
+                                        <button wire:click="removePiece({{ $slotIdx }})"
+                                            class="text-red-400 hover:text-red-300 ml-2 text-xs flex-shrink-0 transition-colors"
+                                            title="Hapus">
+                                            ✕
+                                        </button>
+                                    </div>
+                                @else
+                                    {{-- Slot kosong --}}
+                                    <button
+                                        x-on:click="if (selected !== null) { $wire.placePiece(selected, {{ $slotIdx }}); selected = null; }"
+                                        :class="selected !== null ? 'border-indigo-500 hover:bg-indigo-900/20 cursor-pointer' : 'border-gray-700 cursor-default'"
+                                        class="flex-1 border-2 border-dashed rounded-lg px-4 py-2 text-left transition-all">
+                                        <span class="text-xs text-gray-600"
+                                              :class="selected !== null ? 'text-indigo-400' : 'text-gray-600'">
+                                            <span x-show="selected !== null">← Klik untuk tempatkan di sini</span>
+                                            <span x-show="selected === null">Kosong</span>
+                                        </span>
+                                    </button>
+                                @endif
+                            </div>
                         @endforeach
                     </div>
                 </div>
             </div>
 
-            <!-- Hints Section -->
-            @if(!empty($hints))
-                <div class="mt-6 pt-6 border-t border-slate-200 dark:border-slate-800">
-                    <button wire:click="showNextHint"
-                            class="inline-flex items-center gap-2 rounded-xl bg-amber-100 px-4 py-2 text-sm font-semibold text-amber-900 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-100 dark:hover:bg-amber-900/50">
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M18 5v8a2 2 0 01-2 2h-5l-5 4v-4H4a2 2 0 01-2-2V5a2 2 0 012-2h12a2 2 0 012 2zm-11-1h2v2H7V4zm2 4H7v2h2V8zm2-4h2v2h-2V4zm2 4h-2v2h2V8z" clip-rule="evenodd"></path>
-                        </svg>
-                        💡 Hint ({{ $hintsUsed }}/{{ count($hints) }})
-                    </button>
-
-                    @if($showHint && $hintsUsed <= count($hints))
-                        <div class="mt-3 rounded-xl bg-amber-50 p-3 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
-                            <p class="text-sm text-amber-900 dark:text-amber-100">
-                                {{ $hints[$hintsUsed - 1] ?? 'Tidak ada hint lagi' }}
-                            </p>
-                        </div>
-                    @endif
-                </div>
-            @endif
-        </div>
-
-        <!-- Submit Button -->
-        <div class="flex gap-4">
-            <button wire:click="submitAnswer"
-                    class="flex-1 rounded-2xl bg-indigo-600 px-6 py-3 text-center font-semibold text-white hover:bg-indigo-700 transition disabled:opacity-50"
-                    wire:loading.attr="disabled">
-                <span wire:loading.remove>✓ Submit Jawaban</span>
-                <span wire:loading>Memproses...</span>
-            </button>
-        </div>
-
-        <!-- Polling for timer -->
-        <div wire:poll-5000ms="tick" class="hidden"></div>
-    @else
-        <!-- Results Screen -->
-        <div class="rounded-3xl border border-slate-200 bg-white p-8 dark:border-slate-800 dark:bg-slate-950 text-center mb-6">
-            @if($resultData['passed'])
-                <div class="mb-6">
-                    <div class="text-6xl mb-4">🎉</div>
-                    <h3 class="text-3xl font-bold text-green-600 dark:text-green-400">Sempurna!</h3>
-                    <p class="text-slate-600 dark:text-slate-400 mt-2">Anda menjawab dengan benar!</p>
-                </div>
-            @else
-                <div class="mb-6">
-                    <div class="text-6xl mb-4">📊</div>
-                    <h3 class="text-3xl font-bold text-slate-900 dark:text-slate-100">Hasil Anda</h3>
-                    <p class="text-slate-600 dark:text-slate-400 mt-2">Tingkat akurasi: {{ $resultData['accuracy'] }}%</p>
-                </div>
-            @endif
-
-            <!-- Score Breakdown -->
-            <div class="grid grid-cols-3 gap-4 my-8">
-                <div class="rounded-2xl bg-indigo-50 p-4 dark:bg-indigo-900/20">
-                    <p class="text-xs text-slate-600 dark:text-slate-400">Akurasi</p>
-                    <p class="text-2xl font-bold text-indigo-600 dark:text-indigo-400">{{ $resultData['accuracy'] }}%</p>
-                </div>
-                <div class="rounded-2xl bg-amber-50 p-4 dark:bg-amber-900/20">
-                    <p class="text-xs text-slate-600 dark:text-slate-400">Bonus Waktu</p>
-                    <p class="text-2xl font-bold text-amber-600 dark:text-amber-400">{{ $resultData['timeBonus'] }}%</p>
-                </div>
-                <div class="rounded-2xl bg-purple-50 p-4 dark:bg-purple-900/20">
-                    <p class="text-xs text-slate-600 dark:text-slate-400">Multiplier</p>
-                    <p class="text-2xl font-bold text-purple-600 dark:text-purple-400">{{ number_format($resultData['multiplier'], 1) }}x</p>
-                </div>
-            </div>
-
-            <!-- Final Score -->
-            <div class="rounded-2xl bg-gradient-to-r from-indigo-600 to-violet-600 p-6 text-white mb-8">
-                <p class="text-sm mb-2">Skor Akhir</p>
-                <p class="text-5xl font-bold">{{ $score }}</p>
-            </div>
-
-            <!-- XP Reward -->
-            <div class="rounded-2xl bg-gradient-to-r from-amber-400 to-orange-500 p-6 text-white mb-8">
-                <p class="text-sm mb-2">XP Diperoleh</p>
-                <p class="text-4xl font-bold">+{{ $xpEarned }} XP</p>
-            </div>
-
-            <!-- Score Calculation Formula -->
-            <div class="rounded-2xl bg-slate-100 p-4 dark:bg-slate-900 text-left mb-8 text-sm text-slate-700 dark:text-slate-300">
-                <p class="font-mono">
-                    <span class="text-indigo-600 dark:text-indigo-400">Score</span> = ({{ $resultData['accuracy'] }}% + {{ $resultData['timeBonus'] }}) / 2 × {{ number_format($resultData['multiplier'], 1) }}
-                </p>
-                <p class="font-mono text-slate-600 dark:text-slate-400 mt-2">
-                    = {{ number_format($resultData['baseScore'], 1) }} × {{ number_format($resultData['multiplier'], 1) }} = <strong>{{ $score }}</strong>
-                </p>
-            </div>
-        </div>
-
-        <!-- Navigation Buttons -->
-        <div class="flex gap-4">
-            @if($resultData['passed'])
-                <a href="{{ $getNextLevel() }}"
-                   class="flex-1 rounded-2xl bg-green-600 px-6 py-3 text-center font-semibold text-white hover:bg-green-700 transition inline-flex items-center justify-center gap-2">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                    </svg>
-                    Level Berikutnya
-                </a>
-            @else
-                <button wire:navigate href="{{ $tryAgain() }}"
-                        class="flex-1 rounded-2xl bg-indigo-600 px-6 py-3 text-center font-semibold text-white hover:bg-indigo-700 transition inline-flex items-center justify-center gap-2">
-                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    Coba Lagi
+            {{-- Action Buttons --}}
+            <div class="flex gap-3 mt-6">
+                <button wire:click="showNextHint"
+                    class="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 text-white rounded-lg text-sm font-medium transition-colors">
+                    💡 Ambil Hint
                 </button>
-            @endif
+                <button wire:click="checkAnswer"
+                    class="flex-1 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-bold transition-colors">
+                    ✅ Cek Jawaban
+                </button>
+            </div>
+        </div>
+    @endif
 
-            <a href="{{ route('games.index') }}"
-               class="flex-1 rounded-2xl border border-slate-200 px-6 py-3 text-center font-semibold text-slate-700 hover:bg-slate-50 transition dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-900">
-                Kembali ke Game
-            </a>
+    {{-- ===================== RESULT SCREEN ===================== --}}
+    @if ($isFinished)
+        @php
+            $isPassed = $score >= $level->min_score_to_pass;
+            $total = count($correctOrder);
+        @endphp
+        <div class="max-w-lg mx-auto mt-16 text-center">
+            <div class="bg-gray-900 rounded-2xl p-8 border {{ $isPassed ? 'border-green-700' : 'border-red-800' }} shadow-xl">
+                <div class="text-6xl mb-4">{{ $isPassed ? '🎉' : '😢' }}</div>
+                <h2 class="text-2xl font-bold mb-1">{{ $isPassed ? 'Puzzle Selesai!' : 'Belum Berhasil' }}</h2>
+                <p class="text-gray-400 text-sm mb-6">
+                    {{ $isPassed ? 'Kamu berhasil menyusun kode dengan benar!' : 'Jangan menyerah, coba lagi!' }}
+                </p>
+
+                <div class="grid grid-cols-3 gap-4 mb-6">
+                    <div class="bg-gray-800 rounded-xl p-4">
+                        <div class="text-3xl font-bold {{ $isPassed ? 'text-green-400' : 'text-red-400' }}">
+                            {{ $score }}
+                        </div>
+                        <div class="text-xs text-gray-400">Skor</div>
+                    </div>
+                    <div class="bg-gray-800 rounded-xl p-4">
+                        <div class="text-3xl font-bold text-indigo-400">
+                            {{ $correctCount }}/{{ $total }}
+                        </div>
+                        <div class="text-xs text-gray-400">Benar</div>
+                    </div>
+                    <div class="bg-gray-800 rounded-xl p-4">
+                        <div class="text-3xl font-bold text-yellow-400">
+                            @if ($isPassed) +{{ $level->xp_reward }} @else 0 @endif
+                        </div>
+                        <div class="text-xs text-gray-400">XP</div>
+                    </div>
+                </div>
+
+                @if ($isPassed)
+                    <div class="bg-green-900/30 border border-green-700 rounded-xl p-3 mb-6">
+                        <p class="text-green-300 text-sm">
+                            🌟 Selamat! Kamu mendapat <strong>{{ $level->xp_reward }} XP</strong>!
+                        </p>
+                    </div>
+                @endif
+
+                <div class="flex gap-3">
+                    <button onclick="location.reload()"
+                        class="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors">
+                        🔄 Main Lagi
+                    </button>
+                    <a href="{{ route('games.arena') }}"
+                        class="flex-1 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium transition-colors text-center">
+                        ← Game Arena
+                    </a>
+                </div>
+            </div>
         </div>
     @endif
 </div>
-
-<script>
-function codeDropzone() {
-    return {
-        init() {
-            this.setupSortable();
-        },
-        setupSortable() {
-            const sortable = this.$refs.sortable;
-            if (!sortable) return;
-
-            new Sortable(sortable, {
-                animation: 150,
-                ghostClass: 'opacity-50',
-                dragClass: 'shadow-lg',
-                onEnd: () => this.updateOrderInLivewire(),
-            });
-        },
-        updateOrderInLivewire() {
-            const sortable = this.$refs.sortable;
-            const items = Array.from(sortable.children);
-            const order = items.map(item => {
-                const id = item.dataset.id;
-                return {
-                    id: parseInt(id),
-                    content: item.querySelector('code').textContent,
-                    originalIndex: parseInt(id),
-                };
-            });
-
-            @this.dispatch('updateOrder', { order });
-        },
-    };
-}
-
-// Load Sortable.js from CDN if not already loaded
-if (typeof Sortable === 'undefined') {
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js';
-    document.head.appendChild(script);
-}
-</script>

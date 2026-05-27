@@ -4,212 +4,160 @@ namespace App\Livewire\Games;
 
 use App\Models\GameLevel;
 use App\Models\GameSession;
+use App\Models\GameScore;
 use App\Services\XPService;
-use Livewire\Attributes\On;
 use Livewire\Component;
-use Illuminate\Support\Collection;
 
-class CodePuzzleGame extends Component
+class CodePuzzle extends Component
 {
     public GameLevel $level;
-    public $gameSession;
-    public array $pieces = [];
-    public array $userOrder = [];
-    public int $timeRemaining = 0;
-    public int $totalTime = 0;
-    public bool $isSubmitted = false;
-    public bool $timerActive = false;
-    public ?int $score = null;
-    public ?int $xpEarned = null;
-    public ?array $resultData = null;
+    public array $pieces = [];        // Potongan kode yang diacak
+    public array $placedPieces = [];  // Potongan yang sudah ditempatkan user
+    public array $correctOrder = [];  // Urutan yang benar
+    public int $timeLeft = 60;
+    public bool $isStarted = false;
+    public bool $isFinished = false;
+    public bool $isChecked = false;
+    public int $score = 0;
+    public int $correctCount = 0;
+    public string $hint = '';
+    public int $hintIndex = 0;
     public bool $showHint = false;
-    public int $hintsUsed = 0;
 
-    public function mount(GameLevel $level)
+    public function mount(GameLevel $level): void
     {
         $this->level = $level;
-        
-        // Parse level data
-        $data = json_decode($level->content, true);
-        
-        // Set time based on difficulty (in seconds)
-        $difficultyMultipliers = [
-            'easy' => 60,
-            'medium' => 45,
-            'hard' => 30,
-            'expert' => 20,
-        ];
-        
-        $difficulty = strtolower($level->game->difficulty ?? 'medium');
-        $this->totalTime = $difficultyMultipliers[$difficulty] ?? 45;
-        $this->timeRemaining = $this->totalTime;
-        
-        // Shuffle pieces
-        $this->pieces = collect($data['pieces'] ?? [])
-            ->map(fn($piece, $index) => [
-                'id' => $index,
-                'content' => $piece,
-                'originalIndex' => $index,
-            ])
-            ->shuffle()
-            ->values()
-            ->toArray();
-        
-        // Initialize user order as empty (pieces will be dragged in)
-        $this->userOrder = [];
-        
-        // Create game session
-        $this->gameSession = GameSession::create([
-            'user_id' => auth()->id(),
-            'game_id' => $level->game_id,
-            'game_level_id' => $level->id,
-            'status' => 'in_progress',
-            'started_at' => now(),
-        ]);
-        
-        $this->timerActive = true;
-    }
+        $content = is_array($level->content) ? $level->content : json_decode($level->content, true);
 
-    #[On('poll')]
-    public function tick()
-    {
-        if (!$this->timerActive || $this->isSubmitted) {
-            return;
-        }
+        $originalPieces = $content['pieces'] ?? [];
+        $this->correctOrder = $content['correct_order'] ?? range(0, count($originalPieces) - 1);
 
-        if ($this->timeRemaining > 0) {
-            $this->timeRemaining--;
-        }
-
-        // Auto-submit when time runs out
-        if ($this->timeRemaining === 0) {
-            $this->submitAnswer();
-        }
-    }
-
-    #[On('updateOrder')]
-    public function updateOrder($order)
-    {
-        $this->userOrder = $order;
-    }
-
-    public function submitAnswer()
-    {
-        if ($this->isSubmitted) {
-            return;
-        }
-
-        $this->timerActive = false;
-        $this->isSubmitted = true;
-
-        // Get correct order from level data
-        $data = json_decode($this->level->content, true);
-        $correctOrder = $data['correct_order'] ?? [];
-
-        // Calculate accuracy
-        $userOrderIndices = array_map(function($piece) {
-            return $piece['originalIndex'];
-        }, $this->userOrder);
-
-        $accuracy = 0;
-        if (count($correctOrder) > 0) {
-            $correctCount = 0;
-            foreach ($userOrderIndices as $index => $value) {
-                if (isset($correctOrder[$index]) && $correctOrder[$index] === $value) {
-                    $correctCount++;
-                }
-            }
-            $accuracy = round(($correctCount / count($correctOrder)) * 100);
-        }
-
-        // Calculate time bonus
-        $timeBonus = round(($this->timeRemaining / $this->totalTime) * 100);
-
-        // Get difficulty multiplier
-        $difficultyMultipliers = [
-            'easy' => 0.5,
-            'medium' => 1.0,
-            'hard' => 1.5,
-            'expert' => 2.0,
-        ];
-        $difficulty = strtolower($this->level->game->difficulty ?? 'medium');
-        $multiplier = $difficultyMultipliers[$difficulty] ?? 1.0;
-
-        // Calculate final score
-        $baseScore = ($accuracy + $timeBonus) / 2; // Average of accuracy and time bonus
-        $this->score = (int)round($baseScore * $multiplier);
-
-        // Calculate XP earned
-        $this->xpEarned = (int)round($this->score / 10); // Convert score to XP
-        
-        // Award XP
-        app(XPService::class)->award(
-            auth()->user(),
-            'puzzle_completed',
-            $this->xpEarned,
-            [
-                'game_level_id' => $this->level->id,
-                'accuracy' => $accuracy,
-                'time_used' => $this->totalTime - $this->timeRemaining,
-            ]
+        // Acak urutan pieces
+        $indexed = array_map(
+            fn ($i, $p) => ['index' => $i, 'text' => $p],
+            array_keys($originalPieces),
+            $originalPieces
         );
-
-        // Save game session
-        $this->gameSession->update([
-            'score' => $this->score,
-            'completed_at' => now(),
-            'status' => $accuracy === 100 ? 'passed' : 'completed',
-            'metadata' => json_encode([
-                'accuracy' => $accuracy,
-                'time_bonus' => $timeBonus,
-                'time_used' => $this->totalTime - $this->timeRemaining,
-                'total_time' => $this->totalTime,
-                'hints_used' => $this->hintsUsed,
-            ]),
-        ]);
-
-        $this->resultData = [
-            'accuracy' => $accuracy,
-            'timeBonus' => $timeBonus,
-            'baseScore' => $baseScore,
-            'multiplier' => $multiplier,
-            'passed' => $accuracy === 100,
-        ];
+        shuffle($indexed);
+        $this->pieces = $indexed;
+        $this->placedPieces = array_fill(0, count($originalPieces), null);
+        $this->timeLeft = $level->time_limit;
     }
 
-    public function showNextHint()
+    public function start(): void
     {
-        $data = json_decode($this->level->content, true);
-        $hints = $data['hints'] ?? [];
+        $this->isStarted = true;
+    }
 
-        if ($this->hintsUsed < count($hints)) {
-            $this->hintsUsed++;
+    public function placePiece(int $pieceArrayIndex, int $slotIndex): void
+    {
+        if ($this->isFinished || $this->isChecked) return;
+
+        $piece = $this->pieces[$pieceArrayIndex] ?? null;
+        if (!$piece) return;
+
+        // Kalau slot sudah ada isinya, kembalikan ke pool
+        if ($this->placedPieces[$slotIndex] !== null) {
+            $this->pieces[] = $this->placedPieces[$slotIndex];
+        }
+
+        // Tempatkan piece ke slot
+        $this->placedPieces[$slotIndex] = $piece;
+
+        // Hapus dari pool
+        array_splice($this->pieces, $pieceArrayIndex, 1);
+    }
+
+    public function removePiece(int $slotIndex): void
+    {
+        if ($this->isFinished || $this->isChecked) return;
+
+        $piece = $this->placedPieces[$slotIndex];
+        if ($piece !== null) {
+            $this->pieces[] = $piece;
+            $this->placedPieces[$slotIndex] = null;
+        }
+    }
+
+    public function checkAnswer(): void
+    {
+        if ($this->isFinished) return;
+        $this->isChecked = true;
+
+        $this->correctCount = 0;
+        foreach ($this->placedPieces as $slot => $piece) {
+            if ($piece !== null && isset($this->correctOrder[$slot])
+                && $piece['index'] === $this->correctOrder[$slot]) {
+                $this->correctCount++;
+            }
+        }
+
+        $total = count($this->correctOrder);
+        $accuracy = $total > 0 ? round(($this->correctCount / $total) * 100) : 0;
+        $timeBonus = max(0, $this->timeLeft * 0.3);
+        $this->score = (int) min(100, $accuracy + $timeBonus);
+
+        $this->finish();
+    }
+
+    public function showNextHint(): void
+    {
+        $content = is_array($this->level->content)
+            ? $this->level->content
+            : json_decode($this->level->content, true);
+        $hints = $content['hints'] ?? [];
+
+        if (!empty($hints)) {
+            $this->hint = $hints[$this->hintIndex % count($hints)];
+            $this->hintIndex++;
             $this->showHint = true;
         }
     }
 
-    public function getNextLevel()
+    public function tick(): void
     {
-        $nextLevel = GameLevel::where('game_id', $this->level->game_id)
-            ->where('level_number', '>', $this->level->level_number)
-            ->orderBy('level_number')
-            ->first();
-
-        if ($nextLevel) {
-            return route('games.play', ['game' => $this->level->game_id, 'level' => $nextLevel->id]);
+        if (!$this->isStarted || $this->isFinished || $this->isChecked) return;
+        $this->timeLeft = max(0, $this->timeLeft - 1);
+        if ($this->timeLeft <= 0) {
+            $this->checkAnswer();
         }
-
-        // All levels completed, show congratulations
-        return route('games.index');
     }
 
-    public function tryAgain()
+    private function finish(): void
     {
-        return route('games.play', ['game' => $this->level->game_id, 'level' => $this->level->id]);
+        $this->isFinished = true;
+        $isPassed = $this->score >= $this->level->min_score_to_pass;
+
+        GameSession::create([
+            'user_id'          => auth()->id(),
+            'game_id'          => $this->level->game_id,
+            'game_level_id'    => $this->level->id,
+            'score'            => $this->score,
+            'is_passed'        => $isPassed,
+            'duration_seconds' => $this->level->time_limit - $this->timeLeft,
+        ]);
+
+        $rec = GameScore::firstOrNew([
+            'user_id' => auth()->id(),
+            'game_id' => $this->level->game_id,
+        ]);
+        if ($this->score > ($rec->best_score ?? 0)) {
+            $rec->best_score = $this->score;
+        }
+        $rec->total_plays = ($rec->total_plays ?? 0) + 1;
+        $rec->save();
+
+        if ($isPassed) {
+            app(XPService::class)->award(
+                auth()->user(),
+                'game_completed',
+                $this->level->xp_reward
+            );
+        }
     }
 
     public function render()
     {
-        return view('livewire.games.code-puzzle-game');
+        return view('livewire.games.code-puzzle');
     }
 }
