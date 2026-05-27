@@ -40,7 +40,7 @@
                     🚀 Mulai Puzzle!
                 </button>
 
-                <a href="{{ route('games.arena') }}"
+                <a href="{{ route('games.index') }}"
                     class="block mt-4 text-gray-500 hover:text-gray-300 text-sm transition-colors">
                     ← Kembali ke Game Arena
                 </a>
@@ -200,7 +200,7 @@
                         class="flex-1 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors">
                         🔄 Main Lagi
                     </button>
-                    <a href="{{ route('games.arena') }}"
+                    <a href="{{ route('games.index') }}"
                         class="flex-1 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-medium transition-colors text-center">
                         ← Game Arena
                     </a>

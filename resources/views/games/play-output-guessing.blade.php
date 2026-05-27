@@ -18,6 +18,6 @@
     </div>
 </div>
 
-@livewire('games.quiz-game', ['level' => $level])
+@livewire('games.quiz', ['level' => $level])
 
 @endsection

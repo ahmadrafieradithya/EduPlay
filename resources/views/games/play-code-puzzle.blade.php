@@ -20,4 +20,5 @@
 
 @livewire('games.code-puzzle', ['level' => $level])
 
+
 @endsection

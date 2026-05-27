@@ -213,6 +213,7 @@ class DemoDataSeeder extends Seeder
                 ['type' => $gameData['type']],
                 [
                     'title' => $gameData['title'],
+                    'slug' => Str::slug($gameData['title']),
                     'school_id' => $schoolId,
                     'created_by' => $creatorId,
                     'is_active' => true,

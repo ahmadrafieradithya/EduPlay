@@ -4,31 +4,31 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class GameScore extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'game_session_id',
         'user_id',
-        'score',
-        'max_score',
-        'rank',
-        'details',
+        'game_id',
+        'best_score',
+        'total_plays',
     ];
 
     protected $casts = [
-        'details' => 'array',
+        'best_score' => 'integer',
+        'total_plays' => 'integer',
     ];
 
-    public function session()
-    {
-        return $this->belongsTo(GameSession::class, 'game_session_id');
-    }
-
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function game(): BelongsTo
+    {
+        return $this->belongsTo(Game::class);
     }
 }

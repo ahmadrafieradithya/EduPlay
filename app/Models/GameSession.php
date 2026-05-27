@@ -13,6 +13,7 @@ class GameSession extends Model
         'game_level_id',
         'user_id',
         'score',
+        'is_passed',
         'duration_seconds',
         'answers',
         'played_at',
@@ -25,6 +26,7 @@ class GameSession extends Model
         'played_at' => 'datetime',
         'score' => 'integer',
         'duration_seconds' => 'integer',
+        'is_passed' => 'boolean',
     ];
 
     public function game(): BelongsTo

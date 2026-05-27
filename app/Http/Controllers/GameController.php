@@ -46,8 +46,8 @@ class GameController extends Controller
         $viewMap = [
             'typing_race'     => 'games.play-typing',
             'speed_typing'    => 'games.play-typing',
-            'bug_fix'         => 'games.play-bug-fix',
-            'bug_hunter'      => 'games.play-bug-fix',
+            'bug_fix'         => 'games.play-output-guessing',
+            'bug_hunter'      => 'games.play-output-guessing',
             'code_puzzle'     => 'games.play-code-puzzle',
             'puzzle'          => 'games.play-code-puzzle',
             'output_guessing' => 'games.play-output-guessing',

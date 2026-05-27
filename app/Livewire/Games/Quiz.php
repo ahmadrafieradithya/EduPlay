@@ -8,13 +8,14 @@ use App\Models\GameScore;
 use App\Services\XPService;
 use Livewire\Component;
 
-class QuizGame extends Component
+class Quiz extends Component
 {
     public GameLevel $level;
     public array $questions = [];
     public int $currentIndex = 0;
     public ?int $selectedAnswer = null;
     public int $score = 0;
+    public bool $isStarted = false;
     public bool $isFinished = false;
     public bool $showExplanation = false;
     public bool $isAnswerCorrect = false;
@@ -26,9 +27,7 @@ class QuizGame extends Component
     {
         $this->level = $level;
         $this->loadQuestions();
-        $this->totalTime = ($level->time_limit ?? 60) * count($this->questions);
-        $this->timeLeft = $this->totalTime;
-        $this->startTime = time();
+        $this->timeLeft = $level->time_limit ?? 30;
     }
 
     /**
@@ -36,7 +35,14 @@ class QuizGame extends Component
      */
     private function loadQuestions(): void
     {
-        $this->questions = $this->level->content['questions'] ?? [];
+        $content = is_array($this->level->content) ? $this->level->content : json_decode($this->level->content, true);
+        $this->questions = $content['questions'] ?? [];
+    }
+
+    public function start(): void
+    {
+        $this->isStarted = true;
+        $this->startTime = time();
     }
 
     /**
@@ -48,7 +54,7 @@ class QuizGame extends Component
     }
 
     /**
-     * Select an answer and check if correct
+     * Select an answer
      */
     public function selectAnswer(int $answerIndex): void
     {
@@ -57,10 +63,21 @@ class QuizGame extends Component
         }
 
         $this->selectedAnswer = $answerIndex;
+    }
+
+    /**
+     * Submit the answer
+     */
+    public function submitAnswer(): void
+    {
+        if ($this->selectedAnswer === null || $this->showExplanation || $this->isFinished) {
+            return;
+        }
+
         $currentQ = $this->getCurrentQuestion();
         $correctAnswer = $currentQ['correct'] ?? 0;
 
-        $this->isAnswerCorrect = $answerIndex === $correctAnswer;
+        $this->isAnswerCorrect = $this->selectedAnswer === $correctAnswer;
 
         if ($this->isAnswerCorrect) {
             $this->score++;
@@ -79,6 +96,7 @@ class QuizGame extends Component
             $this->selectedAnswer = null;
             $this->showExplanation = false;
             $this->isAnswerCorrect = false;
+            $this->timeLeft = $this->level->time_limit ?? 30;
         } else {
             $this->finishGame();
         }
@@ -89,6 +107,7 @@ class QuizGame extends Component
      */
     public function finishGame(): void
     {
+        if ($this->isFinished) return;
         $this->isFinished = true;
 
         // Calculate metrics
@@ -126,32 +145,33 @@ class QuizGame extends Component
         $game = $this->level->game;
 
         // Create game session
-        $session = GameSession::create([
+        GameSession::create([
             'game_id' => $game->id,
             'game_level_id' => $this->level->id,
             'user_id' => $user->id,
             'score' => (int) $scorePercentage,
+            'is_passed' => $passed,
             'duration_seconds' => $elapsedSeconds,
-            'answers' => [
+            'answers' => json_encode([
                 'correct_answers' => $this->score,
                 'total_questions' => count($this->questions),
                 'percentage' => $scorePercentage,
-            ],
+            ]),
             'played_at' => now(),
         ]);
 
-        // Create game score
-        GameScore::create([
-            'game_session_id' => $session->id,
+        // Create or update game score
+        $gameScore = GameScore::firstOrNew([
             'user_id' => $user->id,
-            'score' => (int) $scorePercentage,
-            'max_score' => 100,
-            'details' => [
-                'correct_answers' => $this->score,
-                'total_questions' => count($this->questions),
-                'passed' => $passed,
-            ],
+            'game_id' => $game->id,
         ]);
+        
+        if ((int)$scorePercentage > $gameScore->best_score) {
+            $gameScore->best_score = (int)$scorePercentage;
+        }
+        
+        $gameScore->total_plays += 1;
+        $gameScore->save();
     }
 
     /**
@@ -159,7 +179,7 @@ class QuizGame extends Component
      */
     public function tick(): void
     {
-        if ($this->isFinished) {
+        if (!$this->isStarted || $this->isFinished) {
             return;
         }
 
@@ -167,26 +187,16 @@ class QuizGame extends Component
 
         if ($this->timeLeft <= 0) {
             $this->timeLeft = 0;
-            $this->finishGame();
+            if (!$this->showExplanation) {
+                $this->submitAnswer();
+            } else {
+                $this->nextQuestion();
+            }
         }
-    }
-
-    /**
-     * Reset and play again
-     */
-    public function playAgain(): void
-    {
-        $this->currentIndex = 0;
-        $this->selectedAnswer = null;
-        $this->score = 0;
-        $this->isFinished = false;
-        $this->showExplanation = false;
-        $this->timeLeft = $this->totalTime;
-        $this->startTime = time();
     }
 
     public function render()
     {
-        return view('livewire.games.quiz-game');
+        return view('livewire.games.quiz');
     }
 }

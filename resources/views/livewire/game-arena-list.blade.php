@@ -14,7 +14,10 @@
         @if(count($games) > 0)
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             @foreach($games as $game)
-            <a href="{{ route('games.play', $game['id']) }}"
+            @php
+                $firstLevelId = !empty($game['levels']) ? $game['levels'][0]['id'] : 0;
+            @endphp
+            <a href="{{ $firstLevelId ? route('games.play', [$game['id'], $firstLevelId]) : '#' }}"
                class="group relative bg-white dark:bg-slate-800 rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden hover:-translate-y-1 border border-slate-200 dark:border-slate-700">
                 
                 {{-- Thumbnail --}}
